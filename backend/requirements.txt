@@ -1,0 +1,10 @@
+# HTTP server
+fastapi>=0.111.0
+uvicorn[standard]>=0.29.0
+starlette>=0.37.0
+
+# PostgreSQL
+psycopg2-binary>=2.9.9
+
+# Redis
+redis>=5.0.0
