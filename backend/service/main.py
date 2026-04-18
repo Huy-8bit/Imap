@@ -7,7 +7,7 @@ from .config import config
 
 def main() -> None:
     uvicorn.run(
-        "service.app:app",
+        "backend.service.app:app",
         host=config.host,
         port=config.port,
         workers=config.workers,
