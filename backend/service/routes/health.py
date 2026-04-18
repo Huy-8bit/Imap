@@ -2,8 +2,8 @@ from __future__ import annotations
 
 from fastapi import APIRouter
 
-from libs.database import get_postgresql, get_redis
-from libs.http import ok
+from backend.libs.database import get_postgresql, get_redis
+from backend.libs.http import ok
 
 router = APIRouter(prefix="/health", tags=["health"])
 

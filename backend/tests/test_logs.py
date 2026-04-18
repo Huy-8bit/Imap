@@ -8,7 +8,7 @@ from contextlib import redirect_stderr
 from io import StringIO
 from pathlib import Path
 
-from libs.logs import bind_log_context, build_log_formatter, clear_log_context, get_logger, scoped_log_context, setup_logging
+from backend.libs.logs import bind_log_context, build_log_formatter, clear_log_context, get_logger, scoped_log_context, setup_logging
 
 
 def _reset_root_logger() -> None:

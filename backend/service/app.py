@@ -2,9 +2,9 @@ from __future__ import annotations
 
 from fastapi import FastAPI
 
-from libs.database import get_postgresql, get_redis, setup_postgresql, setup_redis
-from libs.http import build_lifespan, create_app
-from libs.logs import setup_logging
+from backend.libs.database import get_postgresql, get_redis, setup_postgresql, setup_redis
+from backend.libs.http import build_lifespan, create_app
+from backend.libs.logs import setup_logging
 
 from .config import config
 from .routes import api_router
