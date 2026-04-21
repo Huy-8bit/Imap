@@ -2,6 +2,10 @@ from __future__ import annotations
 
 import os
 
+from dotenv import load_dotenv
+
+load_dotenv()
+
 
 def _str(name: str, default: str = "") -> str:
     return os.getenv(name, default).strip()
