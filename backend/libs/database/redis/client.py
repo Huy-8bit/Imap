@@ -22,19 +22,23 @@ class RedisClient:
     def connect(self) -> None:
         if self._client is not None:
             return
-        self._pool = redis_lib.ConnectionPool(
-            host=self._config.host,
-            port=self._config.port,
-            db=self._config.db,
-            password=self._config.password,
-            username=self._config.username,
-            ssl=self._config.ssl,
-            socket_timeout=self._config.socket_timeout,
-            socket_connect_timeout=self._config.socket_connect_timeout,
-            max_connections=self._config.max_connections,
-            decode_responses=self._config.decode_responses,
+
+        pool_kwargs = {
+            "host": self._config.host,
+            "port": self._config.port,
+            "db": self._config.db,
+            "password": self._config.password,
+            "username": self._config.username,
+            "socket_timeout": self._config.socket_timeout,
+            "socket_connect_timeout": self._config.socket_connect_timeout,
+            "max_connections": self._config.max_connections,
+            "decode_responses": self._config.decode_responses,
             **self._config.options,
-        )
+        }
+        if self._config.ssl:
+            pool_kwargs["connection_class"] = redis_lib.SSLConnection
+
+        self._pool = redis_lib.ConnectionPool(**pool_kwargs)
         self._client = redis_lib.Redis(connection_pool=self._pool)
 
     def close(self) -> None:

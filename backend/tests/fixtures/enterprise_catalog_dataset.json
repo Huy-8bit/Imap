@@ -1,0 +1,118 @@
+{
+  "organizations": [
+    {
+      "id": "ORG-CAT-001",
+      "general": {
+        "tradeName": "Catalog Alpha Impact Co",
+        "registeredName": "Catalog Alpha Impact Company Limited",
+        "foundedYear": 2020,
+        "taxCode": "CATALOG001",
+        "location": {
+          "province": "Ho Chi Minh City",
+          "ward": "W. Ben Nghe"
+        },
+        "contacts": {
+          "website": "https://catalog-alpha.example.vn",
+          "email": "alpha@catalog.example.vn",
+          "phone": "0909000001"
+        },
+        "operationalStatus": "active",
+        "closedYear": null
+      },
+      "classification": {
+        "organizationType": "private_enterprise",
+        "primaryIndustrySector": "MANUFACTURING",
+        "otherIndustrySectors": [
+          "WHOLESALE AND RETAIL TRADE",
+          null,
+          null
+        ],
+        "environmentalImpactAreas": [
+          "climate_change",
+          "energy",
+          null,
+          null
+        ],
+        "hasPositiveSocialImpact": true,
+        "primaryProductType": "physical_product",
+        "otherProductType": "service_product"
+      }
+    },
+    {
+      "id": "ORG-CAT-002",
+      "general": {
+        "tradeName": "Catalog Beta Learning Coop",
+        "registeredName": "Catalog Beta Learning Cooperative",
+        "foundedYear": 2018,
+        "taxCode": "CATALOG002",
+        "location": {
+          "province": "Hanoi",
+          "ward": "W. Truc Bach"
+        },
+        "contacts": {
+          "website": "https://catalog-beta.example.vn",
+          "email": "beta@catalog.example.vn",
+          "phone": "0909000002"
+        },
+        "operationalStatus": "inactive",
+        "closedYear": 2024
+      },
+      "classification": {
+        "organizationType": "cooperative",
+        "primaryIndustrySector": "EDUCATION AND TRAINING",
+        "otherIndustrySectors": [
+          null,
+          null,
+          null
+        ],
+        "environmentalImpactAreas": [
+          "biodiversity",
+          null,
+          null,
+          null
+        ],
+        "hasPositiveSocialImpact": false,
+        "primaryProductType": "service_product",
+        "otherProductType": null
+      }
+    },
+    {
+      "id": "ORG-CAT-003",
+      "general": {
+        "tradeName": "Catalog Gamma Farms",
+        "registeredName": "Catalog Gamma Farms Joint Stock Company",
+        "foundedYear": 2022,
+        "taxCode": "CATALOG003",
+        "location": {
+          "province": "Da Nang",
+          "ward": "W. Hai Chau"
+        },
+        "contacts": {
+          "website": "https://catalog-gamma.example.vn",
+          "email": "gamma@catalog.example.vn",
+          "phone": "0909000003"
+        },
+        "operationalStatus": "active",
+        "closedYear": null
+      },
+      "classification": {
+        "organizationType": "foreign_invested_enterprise",
+        "primaryIndustrySector": "AGRICULTURE, FORESTRY AND FISHING",
+        "otherIndustrySectors": [
+          "PROFESSIONAL, SCIENTIFIC AND TECHNICAL ACTIVITIES",
+          null,
+          null
+        ],
+        "environmentalImpactAreas": [
+          "energy",
+          null,
+          null,
+          null
+        ],
+        "hasPositiveSocialImpact": true,
+        "primaryProductType": "physical_product",
+        "otherProductType": "service_product"
+      }
+    }
+  ]
+}

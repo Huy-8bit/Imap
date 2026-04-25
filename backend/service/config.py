@@ -46,6 +46,10 @@ class AppConfig:
     log_file: bool    = _bool("LOG_FILE", False)
     log_dir: str      = _str("LOG_DIR", "runtime_logs")
 
+    # ── Cache ─────────────────────────────────────────────────────────
+    cache_default_ttl_seconds: int = _int("CACHE_DEFAULT_TTL_SECONDS", 300)
+    cache_overview_ttl_seconds: int = _int("CACHE_OVERVIEW_TTL_SECONDS", 3600)
+
     # ── PostgreSQL ────────────────────────────────────────────────────
     pg_host: str      = _str("PG_HOST", "localhost")
     pg_port: int      = _int("PG_PORT", 5432)
@@ -60,6 +64,19 @@ class AppConfig:
     redis_port: int   = _int("REDIS_PORT", 6379)
     redis_db: int     = _int("REDIS_DB", 0)
     redis_password: str | None = _str("REDIS_PASSWORD") or None
+
+    # ── Auth / storage ────────────────────────────────────────────────
+    jwt_secret: str   = _str("JWT_SECRET", "change-me")
+    jwt_access_ttl_minutes: int = _int("JWT_ACCESS_TTL_MINUTES", 15)
+    jwt_refresh_ttl_days: int = _int("JWT_REFRESH_TTL_DAYS", 30)
+    file_storage_root: str = _str("FILE_STORAGE_ROOT", "storage")
+
+    # ── Seed / import ─────────────────────────────────────────────────
+    seed_data_dir: str = _str("SEED_DATA_DIR", "docs/iMapVN/Data/Sample-iMap-Json")
+    organization_dataset_path: str = _str(
+        "ORGANIZATION_DATASET_PATH",
+        "docs/iMapVN/Data/Sample-iMap-Json/dataEng.json",
+    )
 
     @classmethod
     def is_production(cls) -> bool:

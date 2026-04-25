@@ -1,0 +1,132 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$comment": "Data schema for VIEI SIBs dataset. Generated from BA_NG_HO_I_NHA__P_LIE__U_DU___LIE__U_SIBs__final_.xlsx",
+  "enums": {
+    "operationalStatus": [
+      "active",
+      "inactive",
+      "unknown"
+    ],
+    "organizationType": [
+      "state_owned_enterprise",
+      "cooperative",
+      "private_enterprise",
+      "foreign_invested_enterprise"
+    ],
+    "industrySector": [
+      "AGRICULTURE, FORESTRY AND FISHING",
+      "MINING AND QUARRYING",
+      "MANUFACTURING",
+      "ELECTRICITY, GAS, STEAM AND AIR CONDITIONING SUPPLY",
+      "WATER SUPPLY; SEWERAGE, WASTE MANAGEMENT AND REMEDIATION ACTIVITIES",
+      "CONSTRUCTION",
+      "WHOLESALE AND RETAIL TRADE",
+      "TRANSPORTATION AND STORAGE",
+      "ACCOMMODATION AND FOOD SERVICE ACTIVITIES",
+      "PUBLISHING, BROADCASTING, CONTENT PRODUCTION AND DISTRIBUTION",
+      "TELECOMMUNICATIONS; COMPUTER PROGRAMMING, CONSULTING AND INFORMATION SERVICE ACTIVITIES",
+      "FINANCIAL AND INSURANCE ACTIVITIES",
+      "REAL ESTATE ACTIVITIES",
+      "PROFESSIONAL, SCIENTIFIC AND TECHNICAL ACTIVITIES",
+      "ADMINISTRATIVE AND SUPPORT SERVICE ACTIVITIES",
+      "ACTIVITIES OF COMMUNIST PARTY, SOCIO-POLITICAL ORGANIZATIONS, PUBLIC ADMINISTRATION AND DEFENCE; COMPULSORY SOCIAL SECURITY",
+      "EDUCATION AND TRAINING",
+      "HUMAN HEALTH AND SOCIAL WORK ACTIVITIES",
+      "ARTS, ENTERTAINMENT AND RECREATION",
+      "OTHER SERVICE ACTIVITIES",
+      "ACTIVITIES OF HOUSEHOLDS AS EMPLOYERS; UNDIFFERENTIATED GOODS AND SERVICES PRODUCING ACTIVITIES FOR OWN USE",
+      "ACTIVITIES OF EXTRATERRITORIAL ORGANIZATIONS AND BODIES"
+    ],
+    "environmentalImpactArea": [
+      "biodiversity",
+      "climate_change",
+      "energy",
+      "material_recovery_circular_economy",
+      "water_and_wastewater",
+      "air_emissions",
+      "solid_waste",
+      "supply_chain",
+      "no_environmental_impact"
+    ],
+    "productType": [
+      "physical_product",
+      "service_product"
+    ],
+    "province": [
+      "Tuyen Quang",
+      "Cao Bang",
+      "Lai Chau",
+      "Lao Cai",
+      "Thai Nguyen",
+      "Dien Bien",
+      "Lang Son",
+      "Son La",
+      "Phu Tho",
+      "Hanoi",
+      "Hai Phong",
+      "Bac Ninh",
+      "Quang Ninh",
+      "Hung Yen",
+      "Ninh Binh",
+      "Thanh Hoa",
+      "Nghe An",
+      "Ha Tinh",
+      "Quang Tri",
+      "Hue",
+      "Da Nang",
+      "Quang Ngai",
+      "Gia Lai",
+      "Dak Lak",
+      "Khanh Hoa",
+      "Lam Dong",
+      "Dong Nai",
+      "Tay Ninh",
+      "Ho Chi Minh City",
+      "Dong Thap",
+      "An Giang",
+      "Vinh Long",
+      "Can Tho",
+      "Ca Mau"
+    ]
+  },
+  "organizations": [
+    {
+      "id": "ORG001",
+      "general": {
+        "tradeName": "Common name used across media channels",
+        "registeredName": "Full legal name as in business registration",
+        "foundedYear": 2021,
+        "taxCode": "0109732650",
+        "location": {
+          "province": "Ho Chi Minh City",
+          "ward": "W. Ben Nghe"
+        },
+        "contacts": {
+          "website": "https://example.vn",
+          "email": "contact@example.vn",
+          "phone": "0909123456"
+        },
+        "operationalStatus": "active",
+        "closedYear": null
+      },
+      "classification": {
+        "organizationType": "private_enterprise",
+        "primaryIndustrySector": "AGRICULTURE, FORESTRY AND FISHING",
+        "otherIndustrySectors": [
+          "MANUFACTURING",
+          null,
+          null
+        ],
+        "environmentalImpactAreas": [
+          "climate_change",
+          "material_recovery_circular_economy",
+          null,
+          null
+        ],
+        "hasPositiveSocialImpact": true,
+        "primaryProductType": "physical_product",
+        "otherProductType": "service_product"
+      }
+    }
+  ]
+}
