@@ -8,3 +8,7 @@ psycopg2-binary>=2.9.9
 
 # Redis
 redis>=5.0.0
+
+# Auth
+passlib[bcrypt]>=1.7.4
+python-jose[cryptography]>=3.3.0

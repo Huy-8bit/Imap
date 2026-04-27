@@ -9,6 +9,9 @@ from backend.libs.logs import setup_logging
 from .config import config
 from .routes import api_router
 
+from service.routes.auth import router as auth_router
+
+
 
 async def _on_startup() -> None:
     setup_logging(
@@ -60,6 +63,8 @@ def create_service() -> FastAPI:
     )
 
     app.include_router(api_router, prefix="/api")
+    app.include_router(auth_router)
+
 
     return app
 
