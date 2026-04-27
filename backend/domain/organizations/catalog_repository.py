@@ -3,6 +3,8 @@ from __future__ import annotations
 from backend.libs.database import PostgreSQLClient
 
 from .schemas import (
+    DashboardBreakdownDimension,
+    DashboardBreakdownParams,
     EnterpriseFilterParams,
     EnterpriseListParams,
     EnterpriseListSort,
@@ -64,6 +66,23 @@ ol.geom IS NOT NULL
 AND ST_IsValid(ol.geom)
 AND GeometryType(ol.geom) = 'POINT'
 """
+DASHBOARD_BREAKDOWN_DIMENSIONS: dict[DashboardBreakdownDimension, dict[str, str]] = {
+    DashboardBreakdownDimension.PROVINCE: {
+        "code_sql": "p.code",
+        "name_sql": "p.display_name",
+        "nonnull_sql": "p.id IS NOT NULL",
+    },
+    DashboardBreakdownDimension.ORGANIZATION_TYPE: {
+        "code_sql": "ot.code",
+        "name_sql": "ot.display_name",
+        "nonnull_sql": "ot.id IS NOT NULL",
+    },
+    DashboardBreakdownDimension.PRIMARY_INDUSTRY_SECTOR: {
+        "code_sql": "pis.code",
+        "name_sql": "pis.display_name",
+        "nonnull_sql": "pis.id IS NOT NULL",
+    },
+}
 
 
 class OrganizationCatalogRepository:
@@ -260,6 +279,36 @@ class OrganizationCatalogRepository:
             "environmental_impact_organizations": 0,
             "mappable_organizations": 0,
         }
+
+    def get_dashboard_breakdown(
+        self,
+        params: DashboardBreakdownParams,
+        *,
+        dimension: DashboardBreakdownDimension,
+    ) -> tuple[list[dict], int]:
+        config = DASHBOARD_BREAKDOWN_DIMENSIONS[dimension]
+        where_sql, where_params = self._build_filter_query(params)
+        matched_total = self._count_enterprises(where_sql, where_params)
+
+        rows = self._db.fetch_all(
+            f"""
+            SELECT
+                {config["code_sql"]} AS bucket_code,
+                {config["name_sql"]} AS bucket_name,
+                COUNT(*)::bigint AS organization_count,
+                COUNT(*) FILTER (
+                    WHERE {MAPPABLE_GEOMETRY_SQL}
+                )::bigint AS mappable_count
+            {FILTER_FROM_SQL}
+            WHERE {where_sql}
+              AND {config["nonnull_sql"]}
+            GROUP BY {config["code_sql"]}, {config["name_sql"]}
+            ORDER BY organization_count DESC, lower({config["code_sql"]}) ASC
+            """
+            ,
+            where_params,
+        )
+        return rows, matched_total
 
     def get_enterprise_detail(self, organization_id: int) -> dict | None:
         return self._db.fetch_one(

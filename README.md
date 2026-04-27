@@ -15,9 +15,11 @@ backend/
 │   ├── dependencies.py        # DB/Redis dependencies + pagination helper
 │   ├── main.py                # lệnh chạy uvicorn
 │   └── routes/
+│       ├── dashboard.py       # /api/dashboard/by-province public breakdown + Redis cache
 │       ├── enterprises.py     # /api/enterprises public catalog APIs
 │       ├── health.py          # /api/health kiểm tra PostgreSQL + Redis
 │       ├── map.py             # /api/map/enterprises public GeoJSON map API
+│       ├── stats.py           # /api/stats/overview public aggregates + Redis cache
 │       └── taxonomies.py      # /api/taxonomies phục vụ filter public
 ├── libs/
 │   ├── http/                  # app factory, middleware, error handlers, responses
@@ -187,6 +189,20 @@ curl "http://127.0.0.1:8000/api/map/enterprises?province=ho_chi_minh_city&operat
 curl "http://127.0.0.1:8000/api/map/enterprises?bbox=105.80,21.00,105.90,21.08"
 ```
 
+### Overview stats checks
+
+```bash
+curl "http://127.0.0.1:8000/api/stats/overview"
+curl "http://127.0.0.1:8000/api/stats/overview?province=ho_chi_minh_city&operationalStatus=active&organizationType=private_enterprise&primaryIndustrySector=manufacturing&hasPositiveSocialImpact=true&environmentalImpactArea=climate_change"
+```
+
+### Dashboard breakdown checks
+
+```bash
+curl "http://127.0.0.1:8000/api/dashboard/by-province"
+curl "http://127.0.0.1:8000/api/dashboard/by-province?operationalStatus=active&organizationType=private_enterprise&primaryIndustrySector=manufacturing&hasPositiveSocialImpact=true&environmentalImpactArea=climate_change"
+```
+
 ### Chạy test
 
 ```bash
@@ -196,12 +212,14 @@ backend/.venv/bin/python -m unittest \
   backend.tests.test_organization_importer \
   backend.tests.test_redis_client \
   backend.tests.test_enterprise_catalog_api \
-  backend.tests.test_enterprise_map_api
+  backend.tests.test_enterprise_map_api \
+  backend.tests.test_stats_overview_api \
+  backend.tests.test_dashboard_by_province_api
 ```
 
 ## Public API notes
 
-- `/api/enterprises` và `/api/map/enterprises` đang dùng cùng filter semantics theo taxonomy `code` đã seed:
+- `/api/enterprises`, `/api/map/enterprises`, `/api/stats/overview` và `/api/dashboard/by-province` đang dùng cùng filter semantics theo taxonomy `code` đã seed:
   - `province`
   - `operationalStatus`
   - `organizationType`
@@ -215,6 +233,35 @@ backend/.venv/bin/python -m unittest \
   - `mappable_total`: số organization khớp filters và có geometry hợp lệ
   - `unmapped_total`: số organization khớp filters nhưng chưa có geometry hợp lệ
   - `returned_total`: số feature thực tế trả về sau khi áp bbox nếu có
+- `/api/stats/overview` hiện trả các metric sau trong `data`:
+  - `total_organizations`
+  - `active_organizations`
+  - `provinces_count`
+  - `social_impact_organizations`
+  - `environmental_impact_organizations`
+  - `mappable_organizations`
+- `environmental_impact_organizations` là số organization khớp filter và có ít nhất một record trong `organization_environmental_impacts`, không phải tổng số link impact.
+- `/api/stats/overview` dùng Redis cache với TTL đọc từ `CACHE_OVERVIEW_TTL_SECONDS` và cache key canonicalized theo đầy đủ filter đầu vào.
+- Nếu Redis read/write lỗi trong lúc xử lý overview endpoint, request vẫn fallback về PostgreSQL thay vì fail.
+- `/api/dashboard/by-province` hiện trả breakdown buckets với các field:
+  - `province_code`
+  - `province_name`
+  - `organization_count`
+  - `mappable_count`
+- `/api/dashboard/by-province` mặc định sort theo:
+  - `organization_count DESC`
+  - tie-break `province_code ASC`
+- Meta của `/api/dashboard/by-province` hiện trả:
+  - `group_by`
+  - `matched_total`
+  - `bucket_count`
+  - `filters_applied`
+  - `cache_hit`
+  - `cache_ttl_seconds`
+- Dashboard breakdown hiện reuse Redis cache pattern của overview:
+  - key canonicalized theo filter đầu vào
+  - TTL reuse `CACHE_OVERVIEW_TTL_SECONDS`
+  - Redis read/write lỗi thì fallback DB
 
 ## Biến môi trường backend
 

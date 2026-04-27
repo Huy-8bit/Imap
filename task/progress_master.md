@@ -4,6 +4,62 @@ Ngày cập nhật: 2026-04-25
 
 ## Đã xong trong lượt này
 
+- Hoàn thành public dashboard breakdown API đầu tiên:
+  - `GET /api/dashboard/by-province`
+  - aggregate thật trên PostgreSQL
+  - reuse filter semantics hiện có theo taxonomy `code`
+  - mỗi bucket hiện trả:
+    - `province_code`
+    - `province_name`
+    - `organization_count`
+    - `mappable_count`
+  - default sort:
+    - `organization_count DESC`
+    - tie-break `province_code ASC`
+  - meta hiện trả:
+    - `group_by`
+    - `matched_total`
+    - `bucket_count`
+    - `filters_applied`
+    - `cache_hit`
+    - `cache_ttl_seconds`
+  - Redis cache thật, reuse TTL `CACHE_OVERVIEW_TTL_SECONDS`
+  - Redis read/write fail sẽ log warning và fallback DB
+- Thêm dashboard breakdown foundation tái dùng cho lượt sau:
+  - repository generic `get_dashboard_breakdown(..., dimension=...)`
+  - dimension mapping đã mở sẵn cho:
+    - `province`
+    - `organization_type`
+    - `primary_industry_sector`
+  - cache foundation reuse từ stats overview qua `CachedOrganizationAggregateService`
+- Thêm integration test `backend/tests/test_dashboard_by_province_api.py` verify:
+  - breakdown đúng
+  - filter đúng
+  - sort ổn định
+  - cache hit observable
+  - fallback DB khi Redis fail
+
+- Hoàn thành public overview stats API trên schema hiện tại:
+  - `GET /api/stats/overview`
+  - aggregate thật trên PostgreSQL
+  - filter thật theo `province`, `operationalStatus`, `organizationType`, `primaryIndustrySector`, `hasPositiveSocialImpact`, `environmentalImpactArea`
+  - metric hiện trả:
+    - `total_organizations`
+    - `active_organizations`
+    - `provinces_count`
+    - `social_impact_organizations`
+    - `environmental_impact_organizations`
+    - `mappable_organizations`
+  - Redis cache thật với TTL từ `CACHE_OVERVIEW_TTL_SECONDS`
+  - cache key canonicalized theo filter đầu vào để tránh trả nhầm aggregate
+  - Redis read/write fail sẽ log warning và fallback DB, không fail request
+- Thêm integration test `backend/tests/test_stats_overview_api.py` verify:
+  - aggregate đúng
+  - filter đúng
+  - cache key được ghi vào Redis
+  - cache hit observable khi DB thay đổi bên dưới
+  - fallback DB khi Redis read/write fail
+
 - Hoàn thành public map API trên schema hiện tại:
   - `GET /api/map/enterprises`
   - trả `GeoJSON FeatureCollection` trong `data`
@@ -61,8 +117,8 @@ Ngày cập nhật: 2026-04-25
 ## Chưa xong
 
 - Chưa có public read APIs còn lại của Phase 2:
-  - `GET /api/stats/overview`
-  - `GET /api/dashboard/*`
+  - breakdown tiếp theo như `GET /api/dashboard/by-sector`
+  - breakdown theo `organizationType`
 - Chưa có geocode/backfill cho `organization_locations.geom`
 - Chưa có auth/assessment/certification/reports/CMS
 - Chưa có import từ file xlsx record-level, mới hoàn thành JSON pipeline production-ready trước
@@ -79,6 +135,13 @@ Ngày cập nhật: 2026-04-25
 - Search query dưới 2 ký tự hữu ích bị reject với `422` để tránh request mơ hồ/quá ngắn.
 - `GET /api/map/enterprises` dùng cùng filter semantics với catalog; `bbox` chỉ giới hạn feature trả về, không đổi `matched_total` và `mappable_total`.
 - Map endpoint chỉ coi record là mappable khi `organization_locations.geom` là `POINT` hợp lệ; lat/lng null hoặc geom null thì record nằm ở `unmapped_total`.
+- `GET /api/stats/overview` dùng cùng filter semantics với catalog/map.
+- `active_organizations` trong overview là số organization khớp filter hiện tại và có `operational_status.code = active`; nếu caller đã filter `operationalStatus=inactive` thì metric này có thể bằng `0`.
+- `environmental_impact_organizations` là số organization khớp filter và có ít nhất một environmental impact link, không phải tổng số impact links.
+- Overview cache key hiện dùng JSON canonicalized của filter params + SHA-256 digest; thay đổi order query params không đổi cache key.
+- `GET /api/dashboard/by-province` dùng cùng filter semantics và cùng cache TTL với overview.
+- `matched_total` của breakdown là tổng số organization khớp filter trước khi group; nếu data thiếu taxonomy của dimension đang group thì tổng bucket có thể nhỏ hơn `matched_total`.
+- Breakdown foundation hiện sort ổn định bằng `organization_count DESC` rồi `bucket_code ASC`.
 
 ## Blocker thật còn lại
 
@@ -116,7 +179,17 @@ Ngày cập nhật: 2026-04-25
   - `curl "http://127.0.0.1:8004/api/map/enterprises?bbox=105.80,21.00,105.90,21.08"`
   - `curl "http://127.0.0.1:8004/api/map/enterprises?province=da_nang&organizationType=foreign_invested_enterprise"`
   - `curl "http://127.0.0.1:8004/api/map/enterprises?bbox=106.1,10.7,105.9,10.8"`
+- `env PG_HOST=127.0.0.1 PG_PORT=5432 PG_DATABASE=imap PG_USER=postgres PG_PASSWORD=postgres REDIS_HOST=127.0.0.1 REDIS_PORT=6379 backend/.venv/bin/python -m unittest backend.tests.test_stats_overview_api`
+- `env PG_HOST=127.0.0.1 PG_PORT=5432 PG_DATABASE=imap PG_USER=postgres PG_PASSWORD=postgres REDIS_HOST=127.0.0.1 REDIS_PORT=6379 backend/.venv/bin/python -m unittest backend.tests.test_logs backend.tests.test_taxonomy_seed_loader backend.tests.test_organization_importer backend.tests.test_redis_client backend.tests.test_enterprise_catalog_api backend.tests.test_enterprise_map_api backend.tests.test_stats_overview_api`
+- boot app local cho overview smoke test:
+  - `curl "http://127.0.0.1:8005/api/stats/overview"`
+  - `curl "http://127.0.0.1:8005/api/stats/overview?province=ho_chi_minh_city&operationalStatus=active&organizationType=private_enterprise&primaryIndustrySector=manufacturing&hasPositiveSocialImpact=true&environmentalImpactArea=climate_change"`
+- `env PG_HOST=127.0.0.1 PG_PORT=5432 PG_DATABASE=imap PG_USER=postgres PG_PASSWORD=postgres REDIS_HOST=127.0.0.1 REDIS_PORT=6379 backend/.venv/bin/python -m unittest backend.tests.test_dashboard_by_province_api`
+- `env PG_HOST=127.0.0.1 PG_PORT=5432 PG_DATABASE=imap PG_USER=postgres PG_PASSWORD=postgres REDIS_HOST=127.0.0.1 REDIS_PORT=6379 backend/.venv/bin/python -m unittest backend.tests.test_logs backend.tests.test_taxonomy_seed_loader backend.tests.test_organization_importer backend.tests.test_redis_client backend.tests.test_enterprise_catalog_api backend.tests.test_enterprise_map_api backend.tests.test_stats_overview_api backend.tests.test_dashboard_by_province_api`
+- boot app local cho dashboard breakdown smoke test:
+  - `curl "http://127.0.0.1:8006/api/dashboard/by-province"`
+  - `curl "http://127.0.0.1:8006/api/dashboard/by-province?operationalStatus=active&organizationType=private_enterprise&primaryIndustrySector=manufacturing&hasPositiveSocialImpact=true&environmentalImpactArea=climate_change"`
 
 ## Bước tiếp theo nên làm
 
-- Triển khai `GET /api/stats/overview` với aggregate thật trên schema hiện tại và cache Redis, để mở đường trực tiếp cho dashboard public phase kế tiếp.
+- Triển khai `GET /api/dashboard/by-sector` trên breakdown foundation hiện có để mở tiếp breakdown theo taxonomy lớn nhất còn thiếu cho dashboard public.
