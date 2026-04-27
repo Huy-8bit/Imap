@@ -65,6 +65,16 @@ class StatsOverviewParams(EnterpriseFilterParams):
     pass
 
 
+class DashboardBreakdownParams(EnterpriseFilterParams):
+    pass
+
+
+class DashboardBreakdownDimension(StrEnum):
+    PROVINCE = "province"
+    ORGANIZATION_TYPE = "organization_type"
+    PRIMARY_INDUSTRY_SECTOR = "primary_industry_sector"
+
+
 class PaginationMeta(BaseModel):
     total: int
     page: int
@@ -230,6 +240,29 @@ class StatsOverviewEnvelope(BaseModel):
     meta: StatsOverviewMeta
 
 
+class DashboardProvinceBucket(BaseModel):
+    province_code: str
+    province_name: str
+    organization_count: int
+    mappable_count: int
+
+
+class DashboardBreakdownMeta(BaseModel):
+    group_by: str
+    matched_total: int
+    bucket_count: int
+    filters_applied: dict[str, str | bool]
+    cache_hit: bool
+    cache_ttl_seconds: int
+
+
+class DashboardByProvinceEnvelope(BaseModel):
+    success: bool = True
+    message: str = "ok"
+    data: list[DashboardProvinceBucket]
+    meta: DashboardBreakdownMeta
+
+
 def enterprise_list_params(
     page: int = Query(default=1, ge=1),
     page_size: int = Query(default=20, ge=1, le=100),
@@ -297,6 +330,24 @@ def stats_overview_params(
     environmental_impact_area: str | None = Query(default=None, alias="environmentalImpactArea"),
 ) -> StatsOverviewParams:
     return StatsOverviewParams(
+        province=province,
+        operational_status=operational_status,
+        organization_type=organization_type,
+        primary_industry_sector=primary_industry_sector,
+        has_positive_social_impact=has_positive_social_impact,
+        environmental_impact_area=environmental_impact_area,
+    )
+
+
+def dashboard_breakdown_params(
+    province: str | None = Query(default=None),
+    operational_status: str | None = Query(default=None, alias="operationalStatus"),
+    organization_type: str | None = Query(default=None, alias="organizationType"),
+    primary_industry_sector: str | None = Query(default=None, alias="primaryIndustrySector"),
+    has_positive_social_impact: bool | None = Query(default=None, alias="hasPositiveSocialImpact"),
+    environmental_impact_area: str | None = Query(default=None, alias="environmentalImpactArea"),
+) -> DashboardBreakdownParams:
+    return DashboardBreakdownParams(
         province=province,
         operational_status=operational_status,
         organization_type=organization_type,

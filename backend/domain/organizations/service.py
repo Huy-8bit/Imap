@@ -3,14 +3,20 @@ from __future__ import annotations
 import hashlib
 import json
 import logging
+from typing import TypeVar
 
-from pydantic import ValidationError
+from pydantic import BaseModel, ValidationError
 
 from backend.libs.database import RedisCommands
 from backend.libs.http.errors import AppError, NotFoundError
 
 from .catalog_repository import OrganizationCatalogRepository
 from .schemas import (
+    DashboardBreakdownDimension,
+    DashboardBreakdownMeta,
+    DashboardBreakdownParams,
+    DashboardByProvinceEnvelope,
+    DashboardProvinceBucket,
     EnterpriseDetail,
     EnterpriseDetailEnvelope,
     EnterpriseListEnvelope,
@@ -33,6 +39,12 @@ from .schemas import (
 from .validators import clean_text
 
 logger = logging.getLogger(__name__)
+ModelT = TypeVar("ModelT", bound=BaseModel)
+
+
+class DashboardByProvinceCachePayload(BaseModel):
+    buckets: list[DashboardProvinceBucket]
+    matched_total: int
 
 
 class EnterpriseCatalogService:
@@ -117,8 +129,9 @@ class EnterpriseCatalogService:
         )
 
 
-class StatsOverviewService:
-    CACHE_KEY_PREFIX = "stats:overview:v1"
+class CachedOrganizationAggregateService:
+    CACHE_KEY_PREFIX = "organizations:aggregate:v1"
+    CACHE_LOG_LABEL = "organizations aggregate"
 
     def __init__(
         self,
@@ -131,9 +144,61 @@ class StatsOverviewService:
         self._cache = cache
         self._cache_ttl_seconds = cache_ttl_seconds
 
+    @classmethod
+    def canonicalize_filter_payload(cls, params: BaseModel) -> dict[str, str | bool]:
+        return {
+            key: value
+            for key, value in params.model_dump(mode="json").items()
+            if value is not None
+        }
+
+    @classmethod
+    def _build_cache_key_from_payload(
+        cls,
+        payload: dict[str, str | bool],
+        *,
+        prefix: str | None = None,
+    ) -> str:
+        canonical = json.dumps(payload, ensure_ascii=False, sort_keys=True, separators=(",", ":"))
+        digest = hashlib.sha256(canonical.encode("utf-8")).hexdigest()
+        resolved_prefix = prefix or cls.CACHE_KEY_PREFIX
+        return f"{resolved_prefix}:{digest}"
+
+    def _load_from_cache(self, cache_key: str, *, model_cls: type[ModelT]) -> ModelT | None:
+        try:
+            cached_value = self._cache.get(cache_key)
+        except Exception as exc:
+            logger.warning("%s cache read failed: %s", self.CACHE_LOG_LABEL, exc)
+            return None
+
+        if cached_value is None:
+            return None
+
+        try:
+            payload = json.loads(cached_value)
+            return model_cls.model_validate(payload)
+        except (json.JSONDecodeError, ValidationError) as exc:
+            logger.warning("%s cache payload invalid: %s", self.CACHE_LOG_LABEL, exc)
+            return None
+
+    def _store_in_cache(self, cache_key: str, data: BaseModel) -> None:
+        try:
+            self._cache.set(
+                cache_key,
+                json.dumps(data.model_dump(mode="json"), sort_keys=True, separators=(",", ":")),
+                ex=self._cache_ttl_seconds,
+            )
+        except Exception as exc:
+            logger.warning("%s cache write failed: %s", self.CACHE_LOG_LABEL, exc)
+
+
+class StatsOverviewService(CachedOrganizationAggregateService):
+    CACHE_KEY_PREFIX = "stats:overview:v1"
+    CACHE_LOG_LABEL = "stats overview"
+
     def get_overview(self, params: StatsOverviewParams) -> StatsOverviewEnvelope:
         cache_key = self.build_cache_key(params)
-        cached_data = self._load_from_cache(cache_key)
+        cached_data = self._load_from_cache(cache_key, model_cls=StatsOverviewData)
         if cached_data is None:
             cached_data = StatsOverviewData.model_validate(self._repository.get_stats_overview(params))
             self._store_in_cache(cache_key, cached_data)
@@ -145,38 +210,56 @@ class StatsOverviewService:
 
     @classmethod
     def build_cache_key(cls, params: StatsOverviewParams) -> str:
-        payload = {
-            key: value
-            for key, value in params.model_dump(mode="json").items()
-            if value is not None
-        }
-        canonical = json.dumps(payload, ensure_ascii=False, sort_keys=True, separators=(",", ":"))
-        digest = hashlib.sha256(canonical.encode("utf-8")).hexdigest()
-        return f"{cls.CACHE_KEY_PREFIX}:{digest}"
+        return cls._build_cache_key_from_payload(cls.canonicalize_filter_payload(params))
 
-    def _load_from_cache(self, cache_key: str) -> StatsOverviewData | None:
-        try:
-            cached_value = self._cache.get(cache_key)
-        except Exception as exc:
-            logger.warning("stats overview cache read failed: %s", exc)
-            return None
 
-        if cached_value is None:
-            return None
+class DashboardBreakdownService(CachedOrganizationAggregateService):
+    CACHE_KEY_PREFIX = "dashboard:breakdown:v1"
+    CACHE_LOG_LABEL = "dashboard breakdown"
 
-        try:
-            payload = json.loads(cached_value)
-            return StatsOverviewData.model_validate(payload)
-        except (json.JSONDecodeError, ValidationError) as exc:
-            logger.warning("stats overview cache payload invalid: %s", exc)
-            return None
-
-    def _store_in_cache(self, cache_key: str, data: StatsOverviewData) -> None:
-        try:
-            self._cache.set(
-                cache_key,
-                json.dumps(data.model_dump(mode="json"), sort_keys=True, separators=(",", ":")),
-                ex=self._cache_ttl_seconds,
+    def get_by_province(self, params: DashboardBreakdownParams) -> DashboardByProvinceEnvelope:
+        dimension = DashboardBreakdownDimension.PROVINCE
+        filters_applied = self.canonicalize_filter_payload(params)
+        cache_key = self.build_cache_key(dimension, params)
+        cache_hit = False
+        cached_payload = self._load_from_cache(cache_key, model_cls=DashboardByProvinceCachePayload)
+        if cached_payload is None:
+            rows, matched_total = self._repository.get_dashboard_breakdown(params, dimension=dimension)
+            cached_payload = DashboardByProvinceCachePayload(
+                buckets=[
+                    DashboardProvinceBucket(
+                        province_code=row["bucket_code"],
+                        province_name=row["bucket_name"],
+                        organization_count=row["organization_count"],
+                        mappable_count=row["mappable_count"],
+                    )
+                    for row in rows
+                ],
+                matched_total=matched_total,
             )
-        except Exception as exc:
-            logger.warning("stats overview cache write failed: %s", exc)
+            self._store_in_cache(cache_key, cached_payload)
+        else:
+            cache_hit = True
+
+        return DashboardByProvinceEnvelope(
+            data=cached_payload.buckets,
+            meta=DashboardBreakdownMeta(
+                group_by=dimension.value,
+                matched_total=cached_payload.matched_total,
+                bucket_count=len(cached_payload.buckets),
+                filters_applied=filters_applied,
+                cache_hit=cache_hit,
+                cache_ttl_seconds=self._cache_ttl_seconds,
+            ),
+        )
+
+    @classmethod
+    def build_cache_key(
+        cls,
+        dimension: DashboardBreakdownDimension,
+        params: DashboardBreakdownParams,
+    ) -> str:
+        return cls._build_cache_key_from_payload(
+            cls.canonicalize_filter_payload(params),
+            prefix=f"{cls.CACHE_KEY_PREFIX}:{dimension.value}",
+        )
