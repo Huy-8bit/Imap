@@ -1,0 +1,928 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>iMapVietnam v2.0 — Impact Economy Digital Hub</title>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.css">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Roboto:ital,wght@0,300;0,400;0,500;0,700;0,900;1,300&display=swap" rel="stylesheet">
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+  :root {
+    --bg:       #FFFFFF;
+    --bg2:      #F7F7F5;
+    --bg3:      #F0EFEB;
+    --ink:      #111111;
+    --ink2:     #333333;
+    --muted:    #777777;
+    --faint:    #AAAAAA;
+    --border:   #E2E2DE;
+    --border2:  #CCCCC8;
+    --green:    #1D9E75;
+    --green-dk: #0F6E56;
+    --green-lt: #E6F7F1;
+    --gold:     #B8860A;
+    --gold-lt:  #FFF8E6;
+    --blue-lt:  #EBF4FF;
+    --blue:     #2271D1;
+    --font:     'Roboto', sans-serif;
+  }
+
+  html { scroll-behavior: smooth; }
+  body {
+    font-family: var(--font);
+    background: var(--bg);
+    color: var(--ink);
+    min-height: 100vh;
+    -webkit-font-smoothing: antialiased;
+  }
+
+  /* NAV */
+  nav {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 0 48px;
+    height: 58px;
+    background: var(--bg);
+    border-bottom: 0.5px solid var(--border);
+    position: sticky;
+    top: 0;
+    z-index: 100;
+  }
+  .nav-logo { font-size: 15px; font-weight: 700; letter-spacing: -0.3px; color: var(--ink); }
+  .nav-logo span { color: var(--green); }
+  .nav-links { display: flex; align-items: center; }
+  .nav-link {
+    font-size: 12px; font-weight: 400; color: var(--muted);
+    padding: 0 18px; letter-spacing: 0.2px; cursor: pointer;
+    border-left: 0.5px solid var(--border); transition: color 0.15s; text-decoration: none;
+  }
+  .nav-link:first-child { border-left: none; }
+  .nav-link:hover, .nav-link.active { color: var(--ink); }
+  .nav-cta {
+    font-size: 12px; font-weight: 500; background: var(--green); color: white;
+    padding: 8px 18px; border-radius: 4px; border: none; cursor: pointer;
+    font-family: var(--font); transition: background 0.15s;
+  }
+  .nav-cta:hover { background: var(--green-dk); }
+
+  /* HERO */
+  .hero {
+    padding: 88px 48px 72px; border-bottom: 0.5px solid var(--border);
+    display: grid; grid-template-columns: 1fr 340px; gap: 48px; align-items: end;
+  }
+  .hero-kicker {
+    font-size: 11px; font-weight: 500; color: var(--green);
+    letter-spacing: 1.4px; text-transform: uppercase; margin-bottom: 22px;
+    display: flex; align-items: center; gap: 10px;
+  }
+  .hero-kicker::before { content: ''; width: 26px; height: 1px; background: var(--green); }
+  .hero-h1 {
+    font-size: 72px; font-weight: 900; line-height: 0.95;
+    letter-spacing: -2.5px; color: var(--ink); margin-bottom: 26px;
+  }
+  .hero-h1 em { color: var(--green); font-style: normal; }
+  .hero-sub {
+    font-size: 15px; font-weight: 300; color: var(--muted);
+    line-height: 1.75; max-width: 480px; margin-bottom: 34px;
+  }
+  .hero-actions { display: flex; gap: 12px; align-items: center; }
+  .btn-primary {
+    font-size: 13px; font-weight: 500; background: var(--green); color: white;
+    padding: 12px 24px; border-radius: 4px; border: none; cursor: pointer;
+    font-family: var(--font); transition: background 0.15s;
+    text-decoration: none; display: inline-block;
+  }
+  .btn-primary:hover { background: var(--green-dk); }
+  .btn-ghost {
+    font-size: 13px; font-weight: 400; color: var(--muted); background: none;
+    border: 0.5px solid var(--border2); padding: 12px 24px; border-radius: 4px;
+    cursor: pointer; font-family: var(--font); transition: all 0.15s;
+    text-decoration: none; display: inline-block;
+  }
+  .btn-ghost:hover { border-color: var(--ink); color: var(--ink); }
+
+  .stat-stack { display: flex; flex-direction: column; }
+  .stat-block { padding: 22px 0; border-top: 0.5px solid var(--border); }
+  .stat-num { font-size: 44px; font-weight: 700; color: var(--ink); letter-spacing: -1.5px; line-height: 1; }
+  .stat-unit { font-size: 10px; color: var(--green); font-weight: 500; letter-spacing: 0.8px; text-transform: uppercase; margin-top: 5px; }
+  .stat-desc { font-size: 12px; color: var(--faint); margin-top: 4px; }
+
+  /* TICKER */
+  .ticker {
+    overflow: hidden; background: var(--bg2);
+    border-bottom: 0.5px solid var(--border); padding: 10px 0;
+  }
+  .ticker-track {
+    display: flex; white-space: nowrap;
+    animation: tick 32s linear infinite; width: max-content;
+  }
+  .ticker-track:hover { animation-play-state: paused; }
+  .ticker-item {
+    font-size: 11px; font-weight: 500; color: var(--faint);
+    letter-spacing: 0.6px; padding: 0 32px;
+    border-right: 0.5px solid var(--border); text-transform: uppercase;
+  }
+  .ticker-item span { color: var(--green); margin-right: 7px; }
+  @keyframes tick { 0% { transform: translateX(0); } 100% { transform: translateX(-50%); } }
+
+  /* SECTIONS */
+  .section { padding: 64px 48px; border-bottom: 0.5px solid var(--border); background: var(--bg); }
+  .section.alt { background: var(--bg2); }
+  .pipeline-section { padding: 64px 48px; border-bottom: 0.5px solid var(--border); background: var(--bg2); }
+  .section-header { display: flex; align-items: flex-end; justify-content: space-between; margin-bottom: 40px; }
+  .section-num { font-size: 10px; color: var(--faint); font-weight: 500; letter-spacing: 0.7px; text-transform: uppercase; margin-bottom: 10px; }
+  .section-title { font-size: 38px; font-weight: 900; letter-spacing: -1.2px; color: var(--ink); line-height: 1; }
+  .section-title em { color: var(--green); font-style: normal; }
+  .section-link { font-size: 12px; color: var(--muted); cursor: pointer; text-decoration: underline; text-underline-offset: 4px; transition: color 0.15s; white-space: nowrap; }
+  .section-link:hover { color: var(--ink); }
+
+  /* ENTRIES */
+  .entries-grid {
+    display: grid; grid-template-columns: 1fr 1fr 1fr;
+    border-left: 0.5px solid var(--border); border-top: 0.5px solid var(--border);
+  }
+  .entry {
+    padding: 28px; border-right: 0.5px solid var(--border);
+    border-bottom: 0.5px solid var(--border); cursor: pointer;
+    transition: background 0.15s; background: var(--bg);
+  }
+  .entry:hover { background: var(--bg2); }
+  .entry-num { font-size: 10px; color: var(--faint); margin-bottom: 12px; letter-spacing: 0.4px; text-transform: uppercase; }
+  .entry-name { font-size: 19px; font-weight: 700; color: var(--ink); margin-bottom: 7px; letter-spacing: -0.3px; line-height: 1.2; }
+  .entry-sub { font-size: 12px; font-weight: 300; color: var(--muted); margin-bottom: 14px; line-height: 1.6; }
+  .entry-tags { display: flex; gap: 5px; flex-wrap: wrap; }
+  .tag { font-size: 10px; font-weight: 500; padding: 3px 8px; border-radius: 2px; letter-spacing: 0.2px; }
+  .tag-green { background: var(--green-lt); color: var(--green-dk); border: 0.5px solid #9FE1CB; }
+  .tag-blue  { background: var(--blue-lt);  color: var(--blue);     border: 0.5px solid #B5D4F4; }
+  .tag-gold  { background: var(--gold-lt);  color: var(--gold);     border: 0.5px solid #FAC775; }
+  .tag-gray  { background: var(--bg3);      color: var(--muted);    border: 0.5px solid var(--border2); }
+  .entry-tier {
+    margin-top: 14px; padding-top: 12px; border-top: 0.5px solid var(--border);
+    display: flex; align-items: center; justify-content: space-between;
+  }
+  .tier-dot { width: 7px; height: 7px; border-radius: 50%; display: inline-block; margin-right: 5px; }
+  .tier-label { font-size: 11px; font-weight: 500; }
+
+  /* PIPELINE */
+  .pipe-grid {
+    display: grid; grid-template-columns: repeat(6, 1fr);
+    border-left: 0.5px solid var(--border); border-top: 0.5px solid var(--border); margin-top: 40px;
+  }
+  .pipe-col {
+    padding: 24px 26px; border-right: 0.5px solid var(--border);
+    border-bottom: 0.5px solid var(--border); background: var(--bg2); transition: background 0.15s;
+  }
+  .pipe-col:hover { background: var(--bg); }
+  .pipe-col:first-child { border-top: 2px solid var(--green); margin-top: -1px; }
+  .pipe-col-num { font-size: 10px; color: var(--faint); margin-bottom: 16px; letter-spacing: 0.5px; text-transform: uppercase; }
+  .pipe-col-label { font-size: 13px; font-weight: 700; color: var(--ink); margin-bottom: 8px; }
+  .pipe-col-count { font-size: 38px; font-weight: 700; color: var(--green); line-height: 1; margin-bottom: 5px; letter-spacing: -1px; }
+  .pipe-col-sub { font-size: 11px; color: var(--faint); line-height: 1.5; }
+
+  /* FEATURES */
+  .features {
+    display: grid; grid-template-columns: 1fr 1fr;
+    border-left: 0.5px solid var(--border); border-top: 0.5px solid var(--border);
+  }
+  .feature {
+    padding: 36px; border-right: 0.5px solid var(--border);
+    border-bottom: 0.5px solid var(--border); background: var(--bg2);
+    cursor: pointer; transition: background 0.15s;
+  }
+  .feature:hover { background: var(--bg); }
+  .feature-num { font-size: 10px; color: var(--faint); margin-bottom: 16px; letter-spacing: 0.5px; text-transform: uppercase; display: flex; justify-content: space-between; }
+  .feature-icon { width: 38px; height: 38px; border-radius: 4px; background: var(--bg); border: 0.5px solid var(--border); display: flex; align-items: center; justify-content: center; margin-bottom: 16px; }
+  .feature-title { font-size: 22px; font-weight: 700; color: var(--ink); margin-bottom: 10px; letter-spacing: -0.3px; }
+  .feature-desc { font-size: 13px; font-weight: 300; color: var(--muted); line-height: 1.7; }
+  .feature-arrow { font-size: 18px; margin-top: 22px; color: var(--border2); transition: color 0.15s; }
+  .feature:hover .feature-arrow { color: var(--green); }
+
+  /* CERT */
+  .cert-section {
+    padding: 64px 48px; border-bottom: 0.5px solid var(--border);
+    display: grid; grid-template-columns: 1fr 1fr; background: var(--bg);
+  }
+  .cert-left { padding-right: 48px; border-right: 0.5px solid var(--border); }
+  .cert-right { padding-left: 48px; }
+  .tier-list { display: flex; flex-direction: column; margin-top: 26px; }
+  .tier-row {
+    display: flex; align-items: center; gap: 14px;
+    padding: 16px 0; border-bottom: 0.5px solid var(--border);
+    cursor: pointer; transition: padding-left 0.2s;
+  }
+  .tier-row:hover { padding-left: 6px; }
+  .tier-row:last-child { border-bottom: none; }
+  .tier-icon { width: 32px; height: 32px; border-radius: 3px; display: flex; align-items: center; justify-content: center; font-size: 13px; flex-shrink: 0; }
+  .tier-name { font-size: 14px; font-weight: 500; color: var(--ink); margin-bottom: 2px; }
+  .tier-desc { font-size: 12px; font-weight: 300; color: var(--muted); }
+  .tier-count { margin-left: auto; font-size: 24px; font-weight: 700; color: var(--faint); letter-spacing: -0.5px; }
+  .score-visual { margin-top: 26px; }
+  .dim-item { margin-bottom: 16px; }
+  .dim-label { display: flex; justify-content: space-between; font-size: 12px; color: var(--muted); margin-bottom: 6px; }
+  .dim-label span:last-child { color: var(--ink); font-weight: 500; }
+  .dim-track { height: 2px; background: var(--border); border-radius: 2px; }
+  .dim-fill  { height: 100%; border-radius: 2px; background: var(--green); }
+  .roadmap { display: flex; flex-direction: column; gap: 13px; margin-top: 28px; }
+  .road-item { display: flex; align-items: center; gap: 12px; }
+  .road-dot { width: 22px; height: 22px; border-radius: 50%; display: flex; align-items: center; justify-content: center; flex-shrink: 0; font-size: 9px; font-weight: 700; }
+  .road-text { font-size: 13px; font-weight: 300; color: var(--muted); }
+  .road-text.active { color: var(--ink); font-weight: 400; }
+
+  /* CTA */
+  .cta-band { padding: 96px 48px; text-align: center; background: var(--bg2); border-top: 0.5px solid var(--border); }
+  .cta-overline { font-size: 10px; color: var(--green); letter-spacing: 1.5px; text-transform: uppercase; margin-bottom: 22px; font-weight: 500; }
+  .cta-h2 { font-size: 56px; font-weight: 900; letter-spacing: -2px; color: var(--ink); margin-bottom: 14px; line-height: 1; }
+  .cta-h2 em { color: var(--green); font-style: normal; }
+  .cta-sub { font-size: 14px; font-weight: 300; color: var(--muted); margin-bottom: 32px; }
+  .cta-actions { display: flex; gap: 12px; justify-content: center; }
+
+  /* FOOTER */
+  footer { padding: 32px 48px; display: flex; align-items: center; justify-content: space-between; border-top: 0.5px solid var(--border); background: var(--bg); }
+  .footer-logo { font-size: 13px; font-weight: 700; color: var(--faint); }
+  .footer-logo span { color: var(--green); }
+  .footer-links { display: flex; gap: 22px; }
+  .footer-link { font-size: 11px; color: var(--faint); cursor: pointer; letter-spacing: 0.2px; transition: color 0.15s; }
+  .footer-link:hover { color: var(--muted); }
+  .footer-right { font-size: 11px; color: var(--border2); }
+
+  /* ANIMATIONS */
+
+  .map-tip {
+    font-family: 'Roboto', sans-serif !important;
+    border: 0.5px solid #E2E2DE !important;
+    border-radius: 4px !important;
+    box-shadow: 0 4px 12px rgba(0,0,0,0.08) !important;
+    padding: 8px 12px !important;
+  }
+  .leaflet-tooltip { background: white !important; }
+
+  .fade-in { opacity: 0; transform: translateY(18px); transition: opacity 0.55s ease, transform 0.55s ease; }
+  .fade-in.visible { opacity: 1; transform: translateY(0); }
+
+  /* RESPONSIVE */
+  @media (max-width: 900px) {
+    .hero { grid-template-columns: 1fr; padding: 60px 24px 48px; }
+    .hero-h1 { font-size: 52px; }
+    .hero-right { display: none; }
+    nav { padding: 0 24px; }
+    .nav-links { display: none; }
+    .entries-grid { grid-template-columns: 1fr 1fr; }
+    .pipe-grid { grid-template-columns: repeat(3, 1fr); }
+    .features { grid-template-columns: 1fr; }
+    .cert-section { grid-template-columns: 1fr; }
+    .cert-left { border-right: none; padding-right: 0; padding-bottom: 48px; border-bottom: 0.5px solid var(--border); }
+    .cert-right { padding-left: 0; padding-top: 48px; }
+    .section, .pipeline-section { padding: 48px 24px; }
+    .cta-band { padding: 64px 24px; }
+    footer { padding: 28px 24px; flex-direction: column; gap: 14px; text-align: center; }
+  }
+</style>
+</head>
+<body>
+
+<nav>
+  <div class="nav-logo">(i<span>M</span>)apVietnam®</div>
+  <div class="nav-links">
+    <a href="#top"       class="nav-link active">/Tổng quan</a>
+    <a href="#ecosystem" class="nav-link">/Hệ sinh thái</a>
+    <a href="#cert"      class="nav-link">/Xác thực</a>
+    <a href="#pipeline"  class="nav-link">/Pipeline</a>
+    <a href="#register"  class="nav-link">/Đăng ký</a>
+    <a href="#dashboard" class="nav-link">/Dashboard</a>
+  </div>
+  <button class="nav-cta">Thêm doanh nghiệp +</button>
+</nav>
+
+<section class="hero" id="top">
+  <div>
+    <div class="hero-kicker">Impact Economy Digital Hub &mdash; Q1/2026</div>
+    <h1 class="hero-h1">Từ <em>hiện diện</em><br>đến <em>uy tín.</em></h1>
+    <p class="hero-sub">Nền tảng số trung tâm cho hệ sinh thái doanh nghiệp tạo tác động xã hội Việt Nam. Dữ liệu thực, xác thực khoa học, kết nối nguồn lực.</p>
+    <div class="hero-actions">
+      <a href="#ecosystem" class="btn-primary">Khám phá hệ sinh thái</a>
+      <a href="#cert"      class="btn-ghost">Xem Impactonomy Mark &rarr;</a>
+    </div>
+  </div>
+  <div class="hero-right">
+    <div class="stat-stack">
+      <div class="stat-block">
+        <div class="stat-num">1,247</div>
+        <div class="stat-unit">doanh nghiệp</div>
+        <div class="stat-desc">Đã đăng ký trên nền tảng</div>
+      </div>
+      <div class="stat-block">
+        <div class="stat-num">389</div>
+        <div class="stat-unit">Verified</div>
+        <div class="stat-desc">Đã qua bộ lọc của IID</div>
+      </div>
+      <div class="stat-block">
+        <div class="stat-num" style="color:var(--gold)">87</div>
+        <div class="stat-unit" style="color:var(--gold)">Gold Mark</div>
+        <div class="stat-desc">Chứng nhận Impactonomy</div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<div class="ticker">
+  <div class="ticker-track">
+    <div class="ticker-item"><span>SE</span>Doanh nghiệp xã hội</div>
+    <div class="ticker-item"><span>SIB</span>Tạo tác động</div>
+    <div class="ticker-item"><span>IB</span>Kinh doanh bao trùm</div>
+    <div class="ticker-item"><span>ESO</span>Tổ chức hỗ trợ</div>
+    <div class="ticker-item"><span>SDG</span>17 mục tiêu phát triển</div>
+    <div class="ticker-item"><span>IID</span>Impactonomy Mark</div>
+    <div class="ticker-item"><span>P4G</span>Funding Network</div>
+    <div class="ticker-item"><span>ESG</span>Reporting &amp; SIM</div>
+    <div class="ticker-item"><span>SE</span>Doanh nghiệp xã hội</div>
+    <div class="ticker-item"><span>SIB</span>Tạo tác động</div>
+    <div class="ticker-item"><span>IB</span>Kinh doanh bao trùm</div>
+    <div class="ticker-item"><span>ESO</span>Tổ chức hỗ trợ</div>
+    <div class="ticker-item"><span>SDG</span>17 mục tiêu phát triển</div>
+    <div class="ticker-item"><span>IID</span>Impactonomy Mark</div>
+    <div class="ticker-item"><span>P4G</span>Funding Network</div>
+    <div class="ticker-item"><span>ESG</span>Reporting &amp; SIM</div>
+  </div>
+</div>
+
+<section class="section fade-in" id="ecosystem">
+  <div class="section-header">
+    <div>
+      <div class="section-num">/001/ &mdash; Hệ sinh thái</div>
+      <h2 class="section-title">Doanh nghiệp <em>nổi bật.</em></h2>
+    </div>
+    <span class="section-link">Xem tất cả 1,247 &rarr;</span>
+  </div>
+  <div class="entries-grid">
+    <div class="entry">
+      <div class="entry-num">/001/ &mdash; 2024</div>
+      <div class="entry-name">Kym Global Vietnam</div>
+      <div class="entry-sub">Giải pháp giáo dục cho người khuyết tật, phủ rộng 12 tỉnh thành trên cả nước</div>
+      <div class="entry-tags"><span class="tag tag-green">SE</span><span class="tag tag-blue">Giáo dục</span><span class="tag tag-gray">Hà Nội</span></div>
+      <div class="entry-tier">
+        <div><span class="tier-dot" style="background:var(--gold)"></span><span class="tier-label" style="color:var(--gold)">&#9733; Gold Mark</span></div>
+        <span style="font-size:10px;color:var(--faint)">SDG 4, 10</span>
+      </div>
+    </div>
+    <div class="entry">
+      <div class="entry-num">/002/ &mdash; 2023</div>
+      <div class="entry-name">GreenFarm Cooperative</div>
+      <div class="entry-sub">Nông nghiệp hữu cơ tích hợp, kết nối 300+ nông hộ vùng Tây Nguyên</div>
+      <div class="entry-tags"><span class="tag tag-green">IB</span><span class="tag tag-blue">Nông nghiệp</span><span class="tag tag-gray">Đắk Lắk</span></div>
+      <div class="entry-tier">
+        <div><span class="tier-dot" style="background:var(--gold)"></span><span class="tier-label" style="color:var(--gold)">&#9733; Gold Mark</span></div>
+        <span style="font-size:10px;color:var(--faint)">SDG 1, 2, 8</span>
+      </div>
+    </div>
+    <div class="entry">
+      <div class="entry-num">/003/ &mdash; 2025</div>
+      <div class="entry-name">EcoViet Packaging</div>
+      <div class="entry-sub">Bao bì sinh học thay thế nhựa, cung ứng cho 80+ doanh nghiệp F&amp;B</div>
+      <div class="entry-tags"><span class="tag tag-green">SIB</span><span class="tag tag-blue">Môi trường</span><span class="tag tag-gray">Đà Nẵng</span></div>
+      <div class="entry-tier">
+        <div><span class="tier-dot" style="background:var(--gold)"></span><span class="tier-label" style="color:var(--gold)">&#9733; Gold Mark</span></div>
+        <span style="font-size:10px;color:var(--faint)">SDG 12, 13</span>
+      </div>
+    </div>
+    <div class="entry">
+      <div class="entry-num">/004/ &mdash; 2024</div>
+      <div class="entry-name">HandsWork Social</div>
+      <div class="entry-sub">Đào tạo nghề và việc làm cho người khuyết tật vùng miền Trung Việt Nam</div>
+      <div class="entry-tags"><span class="tag tag-green">SE</span><span class="tag tag-blue">Việc làm</span><span class="tag tag-gray">Huế</span></div>
+      <div class="entry-tier">
+        <div><span class="tier-dot" style="background:var(--blue)"></span><span class="tier-label" style="color:var(--blue)">&#10003; Verified</span></div>
+        <span style="font-size:10px;color:var(--faint)">SDG 8, 10</span>
+      </div>
+    </div>
+    <div class="entry">
+      <div class="entry-num">/005/ &mdash; 2025</div>
+      <div class="entry-name">Tofu Media Collective</div>
+      <div class="entry-sub">Nội dung truyền thông phát triển bền vững cho thế hệ Z Việt Nam</div>
+      <div class="entry-tags"><span class="tag tag-green">SIB</span><span class="tag tag-blue">Truyền thông</span><span class="tag tag-gray">TP.HCM</span></div>
+      <div class="entry-tier">
+        <div><span class="tier-dot" style="background:var(--blue)"></span><span class="tier-label" style="color:var(--blue)">&#10003; Verified</span></div>
+        <span style="font-size:10px;color:var(--faint)">SDG 4, 16</span>
+      </div>
+    </div>
+    <div class="entry">
+      <div class="entry-num">/006/ &mdash; 2025</div>
+      <div class="entry-name">Social Roots Foundation</div>
+      <div class="entry-sub">Vườn ươm doanh nghiệp xã hội giai đoạn đầu, hỗ trợ 40+ startup mỗi năm</div>
+      <div class="entry-tags"><span class="tag tag-gold">ESO</span><span class="tag tag-blue">Ươm tạo</span><span class="tag tag-gray">TP.HCM</span></div>
+      <div class="entry-tier">
+        <div><span class="tier-dot" style="background:var(--faint)"></span><span class="tier-label" style="color:var(--faint)">Basic</span></div>
+        <span style="font-size:10px;color:var(--faint)">SDG 17</span>
+      </div>
+    </div>
+  </div>
+</section>
+
+<section class="pipeline-section fade-in" id="pipeline">
+  <div class="section-header">
+    <div>
+      <div class="section-num">/002/ &mdash; Pipeline</div>
+      <h2 class="section-title">Phễu <em>chuyển đổi.</em></h2>
+    </div>
+    <span class="section-link">Xem chi tiết &rarr;</span>
+  </div>
+  <div class="pipe-grid">
+    <div class="pipe-col"><div class="pipe-col-num">/001/</div><div class="pipe-col-label">Onboarding</div><div class="pipe-col-count">1,247</div><div class="pipe-col-sub">Doanh nghiệp đăng ký</div></div>
+    <div class="pipe-col"><div class="pipe-col-num">/002/</div><div class="pipe-col-label">Assessment</div><div class="pipe-col-count">476</div><div class="pipe-col-sub">Hoàn thành SIM</div></div>
+    <div class="pipe-col"><div class="pipe-col-num">/003/</div><div class="pipe-col-label">Certified</div><div class="pipe-col-count">87</div><div class="pipe-col-sub">Gold Mark IID</div></div>
+    <div class="pipe-col"><div class="pipe-col-num">/P1/</div><div class="pipe-col-label">raothuong.vn</div><div class="pipe-col-count">63</div><div class="pipe-col-sub">E-commerce xanh</div></div>
+    <div class="pipe-col"><div class="pipe-col-num">/P2/</div><div class="pipe-col-label">ESG Consulting</div><div class="pipe-col-count">41</div><div class="pipe-col-sub">Tư vấn &amp; Báo cáo</div></div>
+    <div class="pipe-col"><div class="pipe-col-num">/P3/</div><div class="pipe-col-label">Funding</div><div class="pipe-col-count">22</div><div class="pipe-col-sub">P4G / VSFA</div></div>
+  </div>
+</section>
+
+<section class="section alt fade-in">
+  <div class="section-header">
+    <div>
+      <div class="section-num">/003/ &mdash; Tính năng</div>
+      <h2 class="section-title">Nền tảng <em>toàn diện.</em></h2>
+    </div>
+  </div>
+  <div class="features">
+    <div class="feature">
+      <div class="feature-num">/001/ <span>Số hóa</span></div>
+      <div class="feature-icon"><svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="#1D9E75" stroke-width="1.5"><rect x="1" y="1" width="6" height="6" rx="1"/><rect x="9" y="1" width="6" height="6" rx="1"/><rect x="1" y="9" width="6" height="6" rx="1"/><rect x="9" y="9" width="6" height="6" rx="1"/></svg></div>
+      <div class="feature-title">Dashboard &amp; Heatmap</div>
+      <div class="feature-desc">Doanh nghiệp tự cập nhật số liệu theo thời gian thực. Heatmap SDGs phân tích mức độ lan tỏa tác động theo vùng địa lý.</div>
+      <div class="feature-arrow">&rarr;</div>
+    </div>
+    <div class="feature">
+      <div class="feature-num">/002/ <span>Xác thực</span></div>
+      <div class="feature-icon"><svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="#B8860A" stroke-width="1.5"><path d="M8 1l1.5 3 3.5.5-2.5 2.5.5 3.5L8 9l-3 1.5.5-3.5-2.5-2.5 3.5-.5z"/></svg></div>
+      <div class="feature-title">Impactonomy Mark</div>
+      <div class="feature-desc">Hệ thống chứng nhận 3 cấp: Basic &rarr; Verified &rarr; Gold Mark. Đánh giá 4 chiều: Quản trị, Tác động, Tài chính, Bền vững.</div>
+      <div class="feature-arrow">&rarr;</div>
+    </div>
+    <div class="feature">
+      <div class="feature-num">/003/ <span>Kết nối</span></div>
+      <div class="feature-icon"><svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="#2271D1" stroke-width="1.5"><circle cx="8" cy="8" r="3"/><circle cx="3" cy="4" r="1.5"/><circle cx="13" cy="4" r="1.5"/><line x1="5" y1="7" x2="6" y2="7"/><line x1="10" y1="7" x2="11" y2="7"/></svg></div>
+      <div class="feature-title">Ecosystem Visualization</div>
+      <div class="feature-desc">Mạng lưới kết nối trực quan: ai đầu tư cho ai, doanh nghiệp thuộc vườn ươm nào. Tham chiếu từ ImpactLink Asia.</div>
+      <div class="feature-arrow">&rarr;</div>
+    </div>
+    <div class="feature">
+      <div class="feature-num">/004/ <span>Dữ liệu</span></div>
+      <div class="feature-icon"><svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="#1D9E75" stroke-width="1.5"><path d="M2 14V6l6-4 6 4v8H2z"/><path d="M6 14V9h4v5"/></svg></div>
+      <div class="feature-title">Báo cáo &amp; Xuất dữ liệu</div>
+      <div class="feature-desc">Báo cáo định kỳ theo quý và năm. Import Excel hàng loạt. Admin CRUD toàn bộ hệ thống. Phân quyền Public / Premium / Admin.</div>
+      <div class="feature-arrow">&rarr;</div>
+    </div>
+  </div>
+</section>
+
+<section class="cert-section fade-in" id="cert">
+  <div class="cert-left">
+    <div class="section-num">/004/ &mdash; Chứng nhận</div>
+    <h2 class="section-title" style="font-size:32px;margin-top:12px;letter-spacing:-1px">Impactonomy<br><em>Mark.</em></h2>
+    <p style="font-size:13px;font-weight:300;color:var(--muted);line-height:1.75;margin-top:16px;max-width:340px">Bộ lọc chuyên môn của IID &mdash; phân tách iMap khỏi các nền tảng danh mục thông thường. Dữ liệu xác thực, giảm 60% chi phí Due Diligence cho nhà đầu tư.</p>
+    <div class="tier-list">
+      <div class="tier-row">
+        <div class="tier-icon" style="background:var(--bg3);border:0.5px solid var(--border)"><span style="width:8px;height:8px;border-radius:50%;background:var(--faint);display:block"></span></div>
+        <div><div class="tier-name">Basic</div><div class="tier-desc">Tự khai, chưa xác thực</div></div>
+        <div class="tier-count">771</div>
+      </div>
+      <div class="tier-row">
+        <div class="tier-icon" style="background:var(--blue-lt);border:0.5px solid #B5D4F4"><span style="font-size:12px;color:var(--blue);font-weight:700">&#10003;</span></div>
+        <div><div class="tier-name" style="color:var(--blue)">Verified</div><div class="tier-desc">Đã qua bộ lọc IID</div></div>
+        <div class="tier-count" style="color:var(--blue)">389</div>
+      </div>
+      <div class="tier-row">
+        <div class="tier-icon" style="background:var(--gold-lt);border:0.5px solid #FAC775"><span style="font-size:12px;color:var(--gold);font-weight:700">&#9733;</span></div>
+        <div><div class="tier-name" style="color:var(--gold)">Gold Mark</div><div class="tier-desc">Thẩm định chuyên sâu</div></div>
+        <div class="tier-count" style="color:var(--gold)">87</div>
+      </div>
+    </div>
+  </div>
+  <div class="cert-right">
+    <div style="font-size:10px;color:var(--faint);margin-bottom:24px;letter-spacing:0.6px;text-transform:uppercase">Điểm đánh giá trung bình &mdash; Gold Mark</div>
+    <div class="score-visual">
+      <div class="dim-item"><div class="dim-label"><span>Quản trị tổ chức</span><span>82/100</span></div><div class="dim-track"><div class="dim-fill" style="width:82%"></div></div></div>
+      <div class="dim-item"><div class="dim-label"><span>Tác động xã hội</span><span>78/100</span></div><div class="dim-track"><div class="dim-fill" style="width:78%"></div></div></div>
+      <div class="dim-item"><div class="dim-label"><span>Năng lực tài chính</span><span>65/100</span></div><div class="dim-track"><div class="dim-fill" style="width:65%"></div></div></div>
+      <div class="dim-item"><div class="dim-label"><span>Tính bền vững</span><span>72/100</span></div><div class="dim-track"><div class="dim-fill" style="width:72%"></div></div></div>
+    </div>
+    <div style="margin-top:32px;padding-top:32px;border-top:0.5px solid var(--border)">
+      <div style="font-size:10px;color:var(--faint);margin-bottom:18px;letter-spacing:0.6px;text-transform:uppercase">Lộ trình xác thực</div>
+      <div class="roadmap">
+        <div class="road-item">
+          <div class="road-dot" style="background:var(--green)"><span style="color:white">&#10003;</span></div>
+          <span class="road-text">Onboarding &mdash; Đăng ký &amp; điền thông tin</span>
+        </div>
+        <div class="road-item">
+          <div class="road-dot" style="background:var(--green)"><span style="color:white">&#10003;</span></div>
+          <span class="road-text">Assessment &mdash; Bảng hỏi SIM 20 câu</span>
+        </div>
+        <div class="road-item">
+          <div class="road-dot" style="background:var(--green-lt);border:1px solid var(--green)"><span style="color:var(--green);font-size:10px">&rarr;</span></div>
+          <span class="road-text active">Certification &mdash; Thẩm định bởi IID</span>
+        </div>
+        <div class="road-item" style="opacity:0.38">
+          <div class="road-dot" style="background:var(--bg3);border:0.5px solid var(--border)"></div>
+          <span class="road-text">Integration &mdash; Kết nối nguồn lực</span>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+
+<!-- ═══════════════════════════════════════════
+     DASHBOARD 1 — TỔNG QUAN SỐ LIỆU
+═══════════════════════════════════════════ -->
+<section id="dashboard" style="padding:64px 48px;border-bottom:0.5px solid var(--border);background:var(--bg)">
+
+  <!-- breadcrumb -->
+  <div style="font-size:11px;font-weight:500;color:var(--faint);letter-spacing:0.8px;text-transform:uppercase;margin-bottom:28px">
+    VIỆT NAM &rsaquo; <span style="color:var(--ink)">Tất cả khu vực</span>
+  </div>
+
+  <!-- section title -->
+  <div style="margin-bottom:32px">
+    <div style="font-size:10px;color:var(--faint);font-weight:500;letter-spacing:0.7px;text-transform:uppercase;margin-bottom:10px">/005/ &mdash; Dashboard</div>
+    <h2 style="font-size:38px;font-weight:900;letter-spacing:-1.2px;color:var(--ink);line-height:1">Số liệu <em style="color:var(--green);font-style:normal">tổng quan.</em></h2>
+  </div>
+
+  <!-- KPI row -->
+  <div style="display:grid;grid-template-columns:repeat(4,1fr);border-left:0.5px solid var(--border);border-top:0.5px solid var(--border);margin-bottom:32px">
+    <div class="kpi-cell" style="padding:24px 28px;border-right:0.5px solid var(--border);border-bottom:0.5px solid var(--border)">
+      <div style="font-size:40px;font-weight:700;color:var(--ink);letter-spacing:-1.5px;line-height:1" id="kpi1">1,247</div>
+      <div style="font-size:13px;font-weight:400;color:var(--muted);margin-top:6px">Doanh nghiệp đăng ký</div>
+    </div>
+    <div class="kpi-cell" style="padding:24px 28px;border-right:0.5px solid var(--border);border-bottom:0.5px solid var(--border)">
+      <div style="font-size:40px;font-weight:700;color:var(--ink);letter-spacing:-1.5px;line-height:1">389</div>
+      <div style="font-size:13px;font-weight:400;color:var(--muted);margin-top:6px">Đã xác thực (Verified)</div>
+    </div>
+    <div class="kpi-cell" style="padding:24px 28px;border-right:0.5px solid var(--border);border-bottom:0.5px solid var(--border)">
+      <div style="font-size:40px;font-weight:700;color:var(--ink);letter-spacing:-1.5px;line-height:1">87</div>
+      <div style="font-size:13px;font-weight:400;color:var(--muted);margin-top:6px">Funding rounds</div>
+    </div>
+    <div class="kpi-cell" style="padding:24px 28px;border-bottom:0.5px solid var(--border)">
+      <div style="font-size:40px;font-weight:700;color:var(--green);letter-spacing:-1.5px;line-height:1">22k</div>
+      <div style="font-size:13px;font-weight:400;color:var(--green);margin-top:6px">Người hưởng lợi</div>
+    </div>
+  </div>
+
+  <!-- Chart + filter row -->
+  <div style="display:grid;grid-template-columns:1fr 280px;gap:0;border:0.5px solid var(--border)">
+    <!-- chart panel -->
+    <div style="padding:28px;border-right:0.5px solid var(--border)">
+      <!-- tab bar -->
+      <div style="display:flex;gap:0;margin-bottom:20px;border:0.5px solid var(--border);border-radius:4px;overflow:hidden;width:fit-content">
+        <button onclick="switchTab('investment')" id="tab-investment"
+          style="padding:8px 20px;font-size:12px;font-weight:500;cursor:pointer;border:none;font-family:var(--font);background:var(--green);color:white;transition:all 0.15s">
+          Đăng ký
+        </button>
+        <button onclick="switchTab('verified')" id="tab-verified"
+          style="padding:8px 20px;font-size:12px;font-weight:500;cursor:pointer;border:none;border-left:0.5px solid var(--border);font-family:var(--font);background:var(--bg2);color:var(--muted);transition:all 0.15s">
+          Verified
+        </button>
+        <button onclick="switchTab('certified')" id="tab-certified"
+          style="padding:8px 20px;font-size:12px;font-weight:500;cursor:pointer;border:none;border-left:0.5px solid var(--border);font-family:var(--font);background:var(--bg2);color:var(--muted);transition:all 0.15s">
+          Gold Mark
+        </button>
+      </div>
+      <!-- legend -->
+      <div style="display:flex;gap:16px;flex-wrap:wrap;margin-bottom:16px">
+        <span style="font-size:11px;color:var(--muted);display:flex;align-items:center;gap:5px">
+          <span style="width:8px;height:8px;border-radius:50%;background:#1D9E75;display:inline-block"></span>SE (Doanh nghiệp xã hội)
+        </span>
+        <span style="font-size:11px;color:var(--muted);display:flex;align-items:center;gap:5px">
+          <span style="width:8px;height:8px;border-radius:50%;background:#2271D1;display:inline-block"></span>SIB (Tạo tác động)
+        </span>
+        <span style="font-size:11px;color:var(--muted);display:flex;align-items:center;gap:5px">
+          <span style="width:8px;height:8px;border-radius:50%;background:#B8860A;display:inline-block"></span>IB / ESO
+        </span>
+      </div>
+      <!-- chart canvas -->
+      <div style="position:relative;width:100%;height:260px">
+        <canvas id="dashChart"></canvas>
+      </div>
+      <div style="text-align:center;margin-top:12px">
+        <span style="font-size:12px;color:var(--green);cursor:pointer;text-decoration:underline;text-underline-offset:3px">Xem chi tiết biểu đồ</span>
+      </div>
+    </div>
+    <!-- right filter panel -->
+    <div style="padding:28px">
+      <div style="font-size:10px;font-weight:500;color:var(--faint);letter-spacing:0.7px;text-transform:uppercase;margin-bottom:16px">Lọc theo lĩnh vực</div>
+      <div style="display:flex;flex-direction:column;gap:8px" id="sector-filters">
+        <label style="display:flex;align-items:center;gap:10px;font-size:13px;color:var(--ink);cursor:pointer">
+          <input type="checkbox" checked style="accent-color:var(--green)"> Giáo dục
+        </label>
+        <label style="display:flex;align-items:center;gap:10px;font-size:13px;color:var(--ink);cursor:pointer">
+          <input type="checkbox" checked style="accent-color:var(--green)"> Nông nghiệp
+        </label>
+        <label style="display:flex;align-items:center;gap:10px;font-size:13px;color:var(--ink);cursor:pointer">
+          <input type="checkbox" checked style="accent-color:var(--green)"> Môi trường
+        </label>
+        <label style="display:flex;align-items:center;gap:10px;font-size:13px;color:var(--ink);cursor:pointer">
+          <input type="checkbox" style="accent-color:var(--green)"> Y tế
+        </label>
+        <label style="display:flex;align-items:center;gap:10px;font-size:13px;color:var(--ink);cursor:pointer">
+          <input type="checkbox" style="accent-color:var(--green)"> Tài chính vi mô
+        </label>
+        <label style="display:flex;align-items:center;gap:10px;font-size:13px;color:var(--ink);cursor:pointer">
+          <input type="checkbox" style="accent-color:var(--green)"> Nghề &amp; Việc làm
+        </label>
+      </div>
+
+      <div style="margin-top:24px;padding-top:20px;border-top:0.5px solid var(--border)">
+        <div style="font-size:10px;font-weight:500;color:var(--faint);letter-spacing:0.7px;text-transform:uppercase;margin-bottom:14px">Lọc theo năm</div>
+        <div style="display:flex;flex-direction:column;gap:6px">
+          <div style="display:flex;justify-content:space-between;font-size:11px;color:var(--muted)"><span>Năm bắt đầu</span><span style="font-weight:500;color:var(--ink)" id="year-out">2020</span></div>
+          <input type="range" min="2015" max="2026" value="2020" id="year-range" style="width:100%;accent-color:var(--green)">
+          <div style="display:flex;justify-content:space-between;font-size:10px;color:var(--faint)"><span>2015</span><span>2026</span></div>
+        </div>
+      </div>
+
+      <div style="margin-top:24px;padding-top:20px;border-top:0.5px solid var(--border)">
+        <div style="font-size:10px;font-weight:500;color:var(--faint);letter-spacing:0.7px;text-transform:uppercase;margin-bottom:14px">Top khu vực</div>
+        <div style="display:flex;flex-direction:column;gap:8px">
+          <div style="display:flex;align-items:center;justify-content:space-between">
+            <span style="font-size:12px;color:var(--ink)">TP. Hồ Chí Minh</span>
+            <span style="font-size:12px;font-weight:700;color:var(--green)">324</span>
+          </div>
+          <div style="height:3px;background:var(--border);border-radius:2px"><div style="width:100%;height:100%;background:var(--green);border-radius:2px"></div></div>
+          <div style="display:flex;align-items:center;justify-content:space-between">
+            <span style="font-size:12px;color:var(--ink)">Hà Nội</span>
+            <span style="font-size:12px;font-weight:700;color:var(--green)">287</span>
+          </div>
+          <div style="height:3px;background:var(--border);border-radius:2px"><div style="width:88%;height:100%;background:var(--green);border-radius:2px"></div></div>
+          <div style="display:flex;align-items:center;justify-content:space-between">
+            <span style="font-size:12px;color:var(--ink)">Đà Nẵng</span>
+            <span style="font-size:12px;font-weight:700;color:var(--muted)">143</span>
+          </div>
+          <div style="height:3px;background:var(--border);border-radius:2px"><div style="width:44%;height:100%;background:var(--border2);border-radius:2px"></div></div>
+          <div style="display:flex;align-items:center;justify-content:space-between">
+            <span style="font-size:12px;color:var(--ink)">Cần Thơ</span>
+            <span style="font-size:12px;font-weight:700;color:var(--muted)">89</span>
+          </div>
+          <div style="height:3px;background:var(--border);border-radius:2px"><div style="width:27%;height:100%;background:var(--border2);border-radius:2px"></div></div>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ═══════════════════════════════════════════
+     DASHBOARD 2 — BẢN ĐỒ PHÂN BỐ
+═══════════════════════════════════════════ -->
+<section id="map-dashboard" style="padding:64px 48px;border-bottom:0.5px solid var(--border);background:var(--bg2)">
+
+  <div style="margin-bottom:32px">
+    <div style="font-size:10px;color:var(--faint);font-weight:500;letter-spacing:0.7px;text-transform:uppercase;margin-bottom:10px">/006/ &mdash; Bản đồ phân bố</div>
+    <div style="display:flex;align-items:flex-end;justify-content:space-between">
+      <h2 style="font-size:38px;font-weight:900;letter-spacing:-1.2px;color:var(--ink);line-height:1">Heatmap <em style="color:var(--green);font-style:normal">tác động.</em></h2>
+      <div style="display:flex;gap:8px">
+        <button onclick="setMapLayer('dn')" id="ml-dn" style="padding:7px 16px;font-size:11px;font-weight:500;cursor:pointer;border-radius:4px;border:0.5px solid var(--border);font-family:var(--font);background:var(--green);color:white">Doanh nghiệp</button>
+        <button onclick="setMapLayer('sdg')" id="ml-sdg" style="padding:7px 16px;font-size:11px;font-weight:500;cursor:pointer;border-radius:4px;border:0.5px solid var(--border);font-family:var(--font);background:var(--bg);color:var(--muted)">SDGs</button>
+        <button onclick="setMapLayer('inv')" id="ml-inv" style="padding:7px 16px;font-size:11px;font-weight:500;cursor:pointer;border-radius:4px;border:0.5px solid var(--border);font-family:var(--font);background:var(--bg);color:var(--muted)">Nhà đầu tư</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- map + sidebar layout -->
+  <div style="display:grid;grid-template-columns:1fr 300px;gap:0;border:0.5px solid var(--border)">
+    <!-- map -->
+    <div style="position:relative;background:var(--bg);min-height:460px;border-right:0.5px solid var(--border);overflow:hidden">
+      <div id="vn-map" style="width:100%;height:460px"></div>
+      <!-- tooltip overlay -->
+      <div id="map-tooltip" style="display:none;position:absolute;background:white;border:0.5px solid var(--border);border-radius:4px;padding:10px 14px;font-size:12px;pointer-events:none;box-shadow:0 4px 12px rgba(0,0,0,0.08);z-index:50"></div>
+    </div>
+
+    <!-- right info panel -->
+    <div style="padding:24px;background:var(--bg)">
+      <div style="font-size:10px;font-weight:500;color:var(--faint);letter-spacing:0.7px;text-transform:uppercase;margin-bottom:16px">Chú thích</div>
+
+      <!-- legend scale -->
+      <div style="margin-bottom:20px">
+        <div style="display:flex;height:10px;border-radius:2px;overflow:hidden;margin-bottom:6px">
+          <div style="flex:1;background:#E6F7F1"></div>
+          <div style="flex:1;background:#9FE1CB"></div>
+          <div style="flex:1;background:#5DCAA5"></div>
+          <div style="flex:1;background:#1D9E75"></div>
+          <div style="flex:1;background:#0F6E56"></div>
+        </div>
+        <div style="display:flex;justify-content:space-between;font-size:10px;color:var(--faint)">
+          <span>Thấp</span><span>Trung bình</span><span>Cao</span>
+        </div>
+      </div>
+
+      <div style="padding-top:16px;border-top:0.5px solid var(--border)">
+        <div style="font-size:10px;font-weight:500;color:var(--faint);letter-spacing:0.7px;text-transform:uppercase;margin-bottom:14px">Phân bố theo vùng</div>
+        <div id="region-list" style="display:flex;flex-direction:column;gap:10px">
+          <div class="reg-row" data-region="hcm">
+            <div style="display:flex;justify-content:space-between;margin-bottom:4px">
+              <span style="font-size:12px;font-weight:500;color:var(--ink)">TP. Hồ Chí Minh</span>
+              <span style="font-size:12px;font-weight:700;color:var(--green)">324</span>
+            </div>
+            <div style="height:3px;background:var(--border);border-radius:2px"><div style="width:100%;height:100%;background:var(--green);border-radius:2px"></div></div>
+          </div>
+          <div class="reg-row" data-region="hn">
+            <div style="display:flex;justify-content:space-between;margin-bottom:4px">
+              <span style="font-size:12px;font-weight:500;color:var(--ink)">Hà Nội</span>
+              <span style="font-size:12px;font-weight:700;color:var(--green)">287</span>
+            </div>
+            <div style="height:3px;background:var(--border);border-radius:2px"><div style="width:89%;height:100%;background:var(--green);border-radius:2px"></div></div>
+          </div>
+          <div class="reg-row" data-region="dn">
+            <div style="display:flex;justify-content:space-between;margin-bottom:4px">
+              <span style="font-size:12px;font-weight:500;color:var(--ink)">Đà Nẵng</span>
+              <span style="font-size:12px;font-weight:700;color:var(--muted)">143</span>
+            </div>
+            <div style="height:3px;background:var(--border);border-radius:2px"><div style="width:44%;height:100%;background:#9FE1CB;border-radius:2px"></div></div>
+          </div>
+          <div class="reg-row" data-region="ct">
+            <div style="display:flex;justify-content:space-between;margin-bottom:4px">
+              <span style="font-size:12px;font-weight:500;color:var(--ink)">Cần Thơ</span>
+              <span style="font-size:12px;font-weight:700;color:var(--muted)">89</span>
+            </div>
+            <div style="height:3px;background:var(--border);border-radius:2px"><div style="width:27%;height:100%;background:#C0DD97;border-radius:2px"></div></div>
+          </div>
+          <div class="reg-row" data-region="hue">
+            <div style="display:flex;justify-content:space-between;margin-bottom:4px">
+              <span style="font-size:12px;font-weight:500;color:var(--ink)">Huế</span>
+              <span style="font-size:12px;font-weight:700;color:var(--muted)">67</span>
+            </div>
+            <div style="height:3px;background:var(--border);border-radius:2px"><div style="width:21%;height:100%;background:#C0DD97;border-radius:2px"></div></div>
+          </div>
+          <div class="reg-row" data-region="other">
+            <div style="display:flex;justify-content:space-between;margin-bottom:4px">
+              <span style="font-size:12px;font-weight:500;color:var(--ink)">Các tỉnh khác</span>
+              <span style="font-size:12px;font-weight:700;color:var(--muted)">337</span>
+            </div>
+            <div style="height:3px;background:var(--border);border-radius:2px"><div style="width:100%;height:100%;background:#E6F7F1;border-radius:2px"></div></div>
+          </div>
+        </div>
+      </div>
+
+      <div style="margin-top:20px;padding-top:16px;border-top:0.5px solid var(--border)">
+        <div style="font-size:10px;font-weight:500;color:var(--faint);letter-spacing:0.7px;text-transform:uppercase;margin-bottom:12px">SDGs nổi bật</div>
+        <div style="display:flex;flex-wrap:wrap;gap:5px">
+          <span style="font-size:10px;font-weight:500;padding:3px 8px;border-radius:2px;background:#E6F7F1;color:var(--green-dk);border:0.5px solid #9FE1CB">SDG 4 Giáo dục</span>
+          <span style="font-size:10px;font-weight:500;padding:3px 8px;border-radius:2px;background:#EBF4FF;color:var(--blue);border:0.5px solid #B5D4F4">SDG 8 Việc làm</span>
+          <span style="font-size:10px;font-weight:500;padding:3px 8px;border-radius:2px;background:#EBF4FF;color:var(--blue);border:0.5px solid #B5D4F4">SDG 2 Lương thực</span>
+          <span style="font-size:10px;font-weight:500;padding:3px 8px;border-radius:2px;background:#FFF8E6;color:var(--gold);border:0.5px solid #FAC775">SDG 12 Tiêu dùng</span>
+          <span style="font-size:10px;font-weight:500;padding:3px 8px;border-radius:2px;background:#E6F7F1;color:var(--green-dk);border:0.5px solid #9FE1CB">SDG 13 Khí hậu</span>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+<section class="cta-band fade-in" id="register">
+  <div class="cta-overline">iMapVietnam v2.0 &mdash; IID &mdash; imapvietnam.org</div>
+  <h2 class="cta-h2">Đăng ký<br><em>ngay hôm nay.</em></h2>
+  <p class="cta-sub">Hộ chiếu tác động uy tín để ra mắt thị trường quốc tế</p>
+  <div class="cta-actions">
+    <a href="#" class="btn-primary" style="font-size:14px;padding:13px 28px">Đăng ký doanh nghiệp</a>
+    <a href="#" class="btn-ghost"   style="font-size:14px;padding:13px 28px">Tìm hiểu thêm &rarr;</a>
+  </div>
+</section>
+
+<footer>
+  <div class="footer-logo">(i<span>M</span>)apVietnam® &mdash; IID &mdash; 2026&copy;</div>
+  <div class="footer-links">
+    <span class="footer-link">/Chính sách bảo mật</span>
+    <span class="footer-link">/Điều khoản sử dụng</span>
+    <span class="footer-link">/Liên hệ IID</span>
+  </div>
+  <div class="footer-right">imapvietnam.org</div>
+</footer>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.js"></script>
+<script>
+  const obs = new IntersectionObserver(
+    entries => entries.forEach(e => { if (e.isIntersecting) e.target.classList.add('visible'); }),
+    { threshold: 0.07 }
+  );
+
+  // ── CHART ──
+  const chartData = {
+    investment: {
+      labels: ['2018','2019','2020','2021','2022','2023','2024','2025'],
+      datasets: [
+        { label:'SE', data:[40,70,95,130,170,210,260,324], backgroundColor:'#1D9E75', borderRadius:2 },
+        { label:'SIB', data:[15,28,40,60,90,120,160,200], backgroundColor:'#2271D1', borderRadius:2 },
+        { label:'IB/ESO', data:[10,18,25,35,50,65,80,110], backgroundColor:'#B8860A', borderRadius:2 }
+      ]
+    },
+    verified: {
+      labels: ['2018','2019','2020','2021','2022','2023','2024','2025'],
+      datasets: [
+        { label:'Verified', data:[8,20,40,75,120,200,300,389], backgroundColor:'#2271D1', borderRadius:2 },
+      ]
+    },
+    certified: {
+      labels: ['2018','2019','2020','2021','2022','2023','2024','2025'],
+      datasets: [
+        { label:'Gold Mark', data:[0,2,5,12,22,38,60,87], backgroundColor:'#B8860A', borderRadius:2 },
+      ]
+    }
+  };
+
+  let myChart;
+  function buildChart(key) {
+    const ctx = document.getElementById('dashChart');
+    if (!ctx) return;
+    if (myChart) myChart.destroy();
+    myChart = new Chart(ctx, {
+      type: 'bar',
+      data: chartData[key],
+      options: {
+        responsive: true, maintainAspectRatio: false,
+        plugins: { legend: { display: false }, tooltip: { cornerRadius: 4 } },
+        scales: {
+          x: { stacked: true, grid: { display: false }, ticks: { font: { size: 11, family: 'Roboto' }, color: '#AAA' } },
+          y: { stacked: true, grid: { color: '#F0EFEB' }, border: { dash: [3,3] }, ticks: { font: { size: 11, family: 'Roboto' }, color: '#AAA' } }
+        }
+      }
+    });
+  }
+  buildChart('investment');
+
+  function switchTab(key) {
+    ['investment','verified','certified'].forEach(k => {
+      const btn = document.getElementById('tab-' + k);
+      btn.style.background = k === key ? 'var(--green)' : 'var(--bg2)';
+      btn.style.color = k === key ? 'white' : 'var(--muted)';
+    });
+    buildChart(key);
+  }
+
+  document.getElementById('year-range').addEventListener('input', function() {
+    document.getElementById('year-out').textContent = this.value;
+  });
+
+  // ── MAP ──
+  const regionData = {
+    hcm: { lat: 10.8231, lng: 106.6297, count: 324, color: '#0F6E56', label: 'TP. Hồ Chí Minh' },
+    hn:  { lat: 21.0285, lng: 105.8542, count: 287, color: '#1D9E75', label: 'Hà Nội' },
+    dn:  { lat: 16.0544, lng: 108.2022, count: 143, color: '#5DCAA5', label: 'Đà Nẵng' },
+    ct:  { lat: 10.0452, lng: 105.7469, count: 89,  color: '#9FE1CB', label: 'Cần Thơ' },
+    hue: { lat: 16.4637, lng: 107.5909, count: 67,  color: '#9FE1CB', label: 'Huế' },
+    hp:  { lat: 20.8449, lng: 106.6881, count: 54,  color: '#C0DD97', label: 'Hải Phòng' },
+    vt:  { lat: 10.4113, lng: 107.1362, count: 42,  color: '#C0DD97', label: 'Vũng Tàu' },
+    dl:  { lat: 11.9465, lng: 108.4419, count: 38,  color: '#E6F7F1', label: 'Đà Lạt' },
+  };
+
+  let vnMap;
+  function initMap() {
+    const el = document.getElementById('vn-map');
+    if (!el || !window.L) return;
+    vnMap = L.map('vn-map', { zoomControl: false, attributionControl: true })
+      .setView([16.5, 107.5], 5);
+
+    L.tileLayer('https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png', {
+      attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors &copy; <a href="https://carto.com/">CARTO</a>',
+      subdomains: 'abcd', maxZoom: 19
+    }).addTo(vnMap);
+
+    L.control.zoom({ position: 'topright' }).addTo(vnMap);
+
+    const markers = {};
+    Object.entries(regionData).forEach(([key, d]) => {
+      const radius = Math.sqrt(d.count) * 3.2;
+      const circle = L.circleMarker([d.lat, d.lng], {
+        radius, color: d.color, fillColor: d.color,
+        fillOpacity: 0.55, weight: 2, opacity: 0.9
+      }).addTo(vnMap);
+
+      circle.bindTooltip(
+        '<strong style="font-size:13px">' + d.label + '</strong><br>' +
+        '<span style="color:#1D9E75;font-weight:700;font-size:16px">' + d.count + '</span> doanh nghiệp',
+        { direction: 'top', offset: [0, -8], className: 'map-tip' }
+      );
+      markers[key] = circle;
+    });
+  }
+
+  function setMapLayer(layer) {
+    ['dn','sdg','inv'].forEach(l => {
+      const btn = document.getElementById('ml-' + l);
+      btn.style.background = l === layer ? 'var(--green)' : 'var(--bg)';
+      btn.style.color = l === layer ? 'white' : 'var(--muted)';
+    });
+  }
+
+  // Init map after DOM ready
+  setTimeout(initMap, 300);
+
+  document.querySelectorAll('.fade-in').forEach(el => obs.observe(el));
+
+  document.querySelectorAll('.nav-link').forEach(link => {
+    link.addEventListener('click', function() {
+      document.querySelectorAll('.nav-link').forEach(l => l.classList.remove('active'));
+      this.classList.add('active');
+    });
+  });
+</script>
+</body>
+</html>

@@ -1,0 +1,9 @@
+{
+    "enums": {
+        "operationalStatus": [
+            "active",
+            "inactive",
+            "unknown"
+        ]
+    }
+}

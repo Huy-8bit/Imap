@@ -1,0 +1,40 @@
+{
+    "enums": {
+        "province": [
+            "Tuyen Quang",
+            "Cao Bang",
+            "Lai Chau",
+            "Lao Cai",
+            "Thai Nguyen",
+            "Dien Bien",
+            "Lang Son",
+            "Son La",
+            "Phu Tho",
+            "Hanoi",
+            "Hai Phong",
+            "Bac Ninh",
+            "Quang Ninh",
+            "Hung Yen",
+            "Ninh Binh",
+            "Thanh Hoa",
+            "Nghe An",
+            "Ha Tinh",
+            "Quang Tri",
+            "Hue",
+            "Da Nang",
+            "Quang Ngai",
+            "Gia Lai",
+            "Dak Lak",
+            "Khanh Hoa",
+            "Lam Dong",
+            "Dong Nai",
+            "Tay Ninh",
+            "Ho Chi Minh City",
+            "Dong Thap",
+            "An Giang",
+            "Vinh Long",
+            "Can Tho",
+            "Ca Mau"
+        ]
+    }
+}

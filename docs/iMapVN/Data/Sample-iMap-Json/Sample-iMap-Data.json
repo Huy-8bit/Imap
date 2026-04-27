@@ -1,0 +1,42 @@
+{
+    "organizations": [
+        {
+            "id": "ORG001",
+            "general": {
+                "tradeName": "Common name used across media channels",
+                "registeredName": "Full legal name as in business registration",
+                "foundedYear": 2021,
+                "taxCode": "0109732650",
+                "location": {
+                    "province": "Ho Chi Minh City",
+                    "ward": "W. Ben Nghe"
+                },
+                "contacts": {
+                    "website": "https://example.vn",
+                    "email": "contact@example.vn",
+                    "phone": "0909123456"
+                },
+                "operationalStatus": "active",
+                "closedYear": null
+            },
+            "classification": {
+                "organizationType": "private_enterprise",
+                "primaryIndustrySector": "AGRICULTURE, FORESTRY AND FISHING",
+                "otherIndustrySectors": [
+                    "MANUFACTURING",
+                    null,
+                    null
+                ],
+                "environmentalImpactAreas": [
+                    "climate_change",
+                    "material_recovery_circular_economy",
+                    null,
+                    null
+                ],
+                "hasPositiveSocialImpact": true,
+                "primaryProductType": "physical_product",
+                "otherProductType": "service_product"
+            }
+        }
+    ]
+}

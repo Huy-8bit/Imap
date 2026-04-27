@@ -1,0 +1,15 @@
+{
+    "enums": {
+        "environmentalImpactArea": [
+            "biodiversity",
+            "climate_change",
+            "energy",
+            "material_recovery_circular_economy",
+            "water_and_wastewater",
+            "air_emissions",
+            "solid_waste",
+            "supply_chain",
+            "no_environmental_impact"
+        ]
+    }
+}

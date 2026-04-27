@@ -1,0 +1,10 @@
+{
+    "enums": {
+        "organizationType": [
+            "state_owned_enterprise",
+            "cooperative",
+            "private_enterprise",
+            "foreign_invested_enterprise"
+        ]
+    }
+}
