@@ -90,7 +90,7 @@ def build_seed_bundle(sample_data_dir: Path, workbook_path: Path) -> dict[Taxono
                 ("verified", "Verified"),
                 ("gold", "Gold"),
             ],
-            note="Seeded as directory taxonomy only. Certification workflow remains unimplemented.",
+            note="Seeded as directory taxonomy. Certification workflow uses admin-driven review and upgrade states until IID publishes a detailed rubric.",
         ),
         TaxonomyName.USER_ROLES: _build_manual_rows(
             [
@@ -99,7 +99,7 @@ def build_seed_bundle(sample_data_dir: Path, workbook_path: Path) -> dict[Taxono
                 ("admin", "Admin"),
                 ("enterprise", "Enterprise"),
             ],
-            note="Seeded from backend requirements roles. Auth flow remains unimplemented.",
+            note="Seeded from backend requirements roles for auth and report access policies.",
         ),
     }
     return bundle

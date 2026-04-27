@@ -7,18 +7,30 @@ Backend Python dùng `FastAPI`, có sẵn thư viện dùng chung cho HTTP, logg
 ```text
 backend/
 ├── domain/
-│   ├── organizations/         # import pipeline + organization persistence
-│   └── taxonomies/            # taxonomy seed loader / repository / service
+│   ├── assessment/           # question bank + submissions + result snapshots
+│   ├── auth/                 # users, sessions, tokens, RBAC helpers
+│   ├── certification/        # directory + application/review/upgrade workflow
+│   ├── iid/                  # about/team/partners CMS read/write services
+│   ├── news/                 # news CRUD services
+│   ├── organizations/        # import pipeline + catalog/map/dashboard queries
+│   ├── reports/              # report catalog + custom analysis workflow
+│   └── taxonomies/           # taxonomy seed loader / repository / service
 ├── service/                   # entrypoint FastAPI và routes
 │   ├── app.py                 # tạo app, startup/shutdown, inject router
 │   ├── config.py              # đọc biến môi trường
-│   ├── dependencies.py        # DB/Redis dependencies + pagination helper
+│   ├── dependencies.py        # DB/Redis dependencies + auth helpers
 │   ├── main.py                # lệnh chạy uvicorn
 │   └── routes/
-│       ├── dashboard.py       # /api/dashboard/by-province public breakdown + Redis cache
-│       ├── enterprises.py     # /api/enterprises public catalog APIs
+│       ├── assessment.py      # /api/assessment/*
+│       ├── auth.py            # /api/auth/*
+│       ├── certification.py   # /api/certification/*
+│       ├── dashboard.py       # /api/dashboard/* public breakdowns + Redis cache
+│       ├── enterprises.py     # /api/enterprises* public catalog APIs
 │       ├── health.py          # /api/health kiểm tra PostgreSQL + Redis
+│       ├── iid.py             # /api/iid/*
 │       ├── map.py             # /api/map/enterprises public GeoJSON map API
+│       ├── news.py            # /api/news CRUD
+│       ├── reports.py         # /api/reports/*
 │       ├── stats.py           # /api/stats/overview public aggregates + Redis cache
 │       └── taxonomies.py      # /api/taxonomies phục vụ filter public
 ├── libs/
@@ -201,9 +213,38 @@ curl "http://127.0.0.1:8000/api/stats/overview?province=ho_chi_minh_city&operati
 ```bash
 curl "http://127.0.0.1:8000/api/dashboard/by-province"
 curl "http://127.0.0.1:8000/api/dashboard/by-province?operationalStatus=active&organizationType=private_enterprise&primaryIndustrySector=manufacturing&hasPositiveSocialImpact=true&environmentalImpactArea=climate_change"
+curl "http://127.0.0.1:8000/api/dashboard/by-sector"
+curl "http://127.0.0.1:8000/api/dashboard/by-sector?province=ho_chi_minh_city&operationalStatus=active&organizationType=private_enterprise&hasPositiveSocialImpact=true&environmentalImpactArea=climate_change"
+curl "http://127.0.0.1:8000/api/dashboard/by-organization-type"
+curl "http://127.0.0.1:8000/api/dashboard/growth"
+curl "http://127.0.0.1:8000/api/dashboard/impact-flows?limit=10"
 ```
 
-### Chạy test
+### Auth + CMS quick checks
+
+```bash
+curl -X POST "http://127.0.0.1:8000/api/auth/login" \
+  -H "Content-Type: application/json" \
+  -d '{"email":"admin@example.com","password":"Password123"}'
+curl "http://127.0.0.1:8000/api/iid/about"
+curl "http://127.0.0.1:8000/api/iid/team"
+curl "http://127.0.0.1:8000/api/iid/partners"
+curl "http://127.0.0.1:8000/api/news"
+```
+
+### Assessment, certification, reports quick checks
+
+```bash
+curl "http://127.0.0.1:8000/api/assessment/questions"
+curl "http://127.0.0.1:8000/api/certification/directory"
+curl "http://127.0.0.1:8000/api/reports"
+curl "http://127.0.0.1:8000/api/reports/province"
+curl "http://127.0.0.1:8000/api/reports/sector"
+curl "http://127.0.0.1:8000/api/reports/due-dil"
+curl "http://127.0.0.1:8000/api/reports/sroi"
+```
+
+### Chạy regression tests đã có
 
 ```bash
 backend/.venv/bin/python -m unittest \
@@ -214,12 +255,13 @@ backend/.venv/bin/python -m unittest \
   backend.tests.test_enterprise_catalog_api \
   backend.tests.test_enterprise_map_api \
   backend.tests.test_stats_overview_api \
-  backend.tests.test_dashboard_by_province_api
+  backend.tests.test_dashboard_by_province_api \
+  backend.tests.test_dashboard_by_sector_api
 ```
 
 ## Public API notes
 
-- `/api/enterprises`, `/api/map/enterprises`, `/api/stats/overview` và `/api/dashboard/by-province` đang dùng cùng filter semantics theo taxonomy `code` đã seed:
+- `/api/enterprises`, `/api/map/enterprises`, `/api/stats/overview`, `/api/dashboard/by-province` và `/api/dashboard/by-sector` đang dùng cùng filter semantics theo taxonomy `code` đã seed:
   - `province`
   - `operationalStatus`
   - `organizationType`
@@ -251,6 +293,22 @@ backend/.venv/bin/python -m unittest \
 - `/api/dashboard/by-province` mặc định sort theo:
   - `organization_count DESC`
   - tie-break `province_code ASC`
+- `/api/dashboard/by-sector` hiện trả breakdown buckets với các field:
+  - `primary_industry_sector_code`
+  - `primary_industry_sector_name`
+  - `organization_count`
+  - `mappable_count`
+- `/api/dashboard/by-organization-type` dùng cùng breakdown foundation và hiện trả:
+  - `organization_type_code`
+  - `organization_type_name`
+  - `organization_count`
+  - `mappable_count`
+- `/api/dashboard/by-sector` mặc định sort theo:
+  - `organization_count DESC`
+  - tie-break `primary_industry_sector_code ASC`
+- `/api/dashboard/by-organization-type` mặc định sort theo:
+  - `organization_count DESC`
+  - tie-break `organization_type_code ASC`
 - Meta của `/api/dashboard/by-province` hiện trả:
   - `group_by`
   - `matched_total`
@@ -258,10 +316,27 @@ backend/.venv/bin/python -m unittest \
   - `filters_applied`
   - `cache_hit`
   - `cache_ttl_seconds`
+- Meta của `/api/dashboard/by-sector` và `/api/dashboard/by-organization-type` dùng cùng contract với `/api/dashboard/by-province`.
 - Dashboard breakdown hiện reuse Redis cache pattern của overview:
   - key canonicalized theo filter đầu vào
   - TTL reuse `CACHE_OVERVIEW_TTL_SECONDS`
   - Redis read/write lỗi thì fallback DB
+- `/api/dashboard/growth` hiện trả chuỗi thời gian theo năm thành lập trên dữ liệu đang có; chưa suy luận tăng trưởng kinh doanh vì IID chưa có rule khác.
+- `/api/dashboard/impact-flows` hiện trả cell aggregate giữa `primaryIndustrySector` và `environmentalImpactArea`, phục vụ dashboard/public report cohort views.
+- `/api/enterprises/featured` hiện là curated list admin-managed theo cờ `is_featured`; backend không tự tính ranking.
+- `/api/enterprises/{id}/quick` trả tóm tắt public-safe cho popup/card.
+- `/api/enterprises/{id}/radar` trả score snapshot gần nhất; nếu chưa có assessment snapshot thì trả structure hợp lệ với `scores=[]` và `overall_score=null`.
+- `/api/auth/refresh` rotate session: refresh thành công sẽ revoke session cũ, nên access token cũ không còn dùng được.
+- `/api/assessment/*` đang dùng scoring engine generic/config-driven:
+  - single/multi choice dựa trên `weight`
+  - boolean -> `0/1`
+  - numeric/scale -> normalize theo config min/max nếu có
+  - chưa có công thức business 5 pillars cuối cùng từ IID
+- `/api/certification/*` dùng workflow generic:
+  - apply -> review -> current certification -> upgrade
+  - level taxonomy seed sẵn `basic/verified/gold`
+  - chưa có rubric chấm level chi tiết, nên review/upgrade là admin-driven
+- `/api/reports/*` hiện mới quản lý metadata, access policy và custom analysis workflow; chưa có report generation engine hay binary storage service.
 
 ## Biến môi trường backend
 
@@ -293,9 +368,9 @@ backend/.venv/bin/python -m unittest \
 | `REDIS_PORT` | `6379` | Port Redis |
 | `REDIS_DB` | `0` | Redis DB index |
 | `REDIS_PASSWORD` | trống | Password Redis |
-| `JWT_SECRET` | `change-me` | Placeholder cho phase auth |
-| `JWT_ACCESS_TTL_MINUTES` | `15` | Placeholder cho phase auth |
-| `JWT_REFRESH_TTL_DAYS` | `30` | Placeholder cho phase auth |
+| `JWT_SECRET` | `change-me` | Secret ký access/refresh token |
+| `JWT_ACCESS_TTL_MINUTES` | `15` | TTL access token |
+| `JWT_REFRESH_TTL_DAYS` | `30` | TTL refresh token |
 | `FILE_STORAGE_ROOT` | `storage` | Root path cho file/report storage |
 | `SEED_DATA_DIR` | `docs/iMapVN/Data/Sample-iMap-Json` | Source path cho taxonomy seed |
 | `ORGANIZATION_DATASET_PATH` | `docs/iMapVN/Data/Sample-iMap-Json/dataEng.json` | Source path import organization |
@@ -308,7 +383,27 @@ backend/.venv/bin/python -m unittest \
 - `backend/service/routes/enterprises.py` hiện có:
   - `GET /api/enterprises`
   - `GET /api/enterprises/search`
+  - `GET /api/enterprises/featured`
+  - `GET /api/enterprises/{id}/quick`
+  - `GET /api/enterprises/{id}/radar`
   - `GET /api/enterprises/{id}`
+- `backend/service/routes/dashboard.py` hiện có:
+  - `GET /api/dashboard/by-province`
+  - `GET /api/dashboard/by-sector`
+  - `GET /api/dashboard/by-organization-type`
+  - `GET /api/dashboard/growth`
+  - `GET /api/dashboard/impact-flows`
+- `backend/service/routes/news.py` hiện có CRUD:
+  - `GET /api/news`
+  - `POST /api/news`
+  - `PUT /api/news/{id}`
+  - `DELETE /api/news/{id}`
+- `backend/service/routes/iid.py` hiện có:
+  - `GET /api/iid/about`
+  - `GET /api/iid/team`
+  - `GET /api/iid/partners`
+  - `PUT /api/iid/about`
+- `backend/service/routes/auth.py`, `assessment.py`, `certification.py`, `reports.py` đã nối đầy đủ route/service/repository trên schema mới.
 - Enterprise filter params dùng taxonomy `code` đã seed, ví dụ:
   - `province=ho_chi_minh_city`
   - `operationalStatus=active`

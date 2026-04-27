@@ -69,6 +69,19 @@ class DashboardBreakdownParams(EnterpriseFilterParams):
     pass
 
 
+class EnterpriseFeaturedParams(BaseModel):
+    limit: int = Field(default=5, ge=1, le=20)
+
+
+class DashboardGrowthParams(EnterpriseFilterParams):
+    year_from: int | None = Field(default=None, ge=1800, le=2200)
+    year_to: int | None = Field(default=None, ge=1800, le=2200)
+
+
+class DashboardImpactFlowParams(EnterpriseFilterParams):
+    limit: int = Field(default=500, ge=1, le=2000)
+
+
 class DashboardBreakdownDimension(StrEnum):
     PROVINCE = "province"
     ORGANIZATION_TYPE = "organization_type"
@@ -172,6 +185,71 @@ class EnterpriseDetailEnvelope(BaseModel):
     meta: dict | None = None
 
 
+class EnterpriseRadarPillarScore(BaseModel):
+    pillar_code: str
+    pillar_name: str
+    score: float | None = None
+
+
+class EnterpriseRadarData(BaseModel):
+    enterprise_id: int
+    has_data: bool
+    overall_score: float | None = None
+    scoring_version: str | None = None
+    scored_at: datetime | None = None
+    pillars: list[EnterpriseRadarPillarScore] = Field(default_factory=list)
+
+
+class EnterpriseRadarEnvelope(BaseModel):
+    success: bool = True
+    message: str = "ok"
+    data: EnterpriseRadarData
+    meta: dict | None = None
+
+
+class EnterpriseQuickInfo(BaseModel):
+    id: int
+    external_code: str | None = None
+    display_name: str
+    trade_name: str | None = None
+    registered_name: str | None = None
+    province: TaxonomySummary | None = None
+    full_address: str | None = None
+    website: str | None = None
+    organization_type: TaxonomySummary | None = None
+    operational_status: TaxonomySummary | None = None
+    location_precision: str | None = None
+    radar: EnterpriseRadarData
+
+
+class EnterpriseQuickEnvelope(BaseModel):
+    success: bool = True
+    message: str = "ok"
+    data: EnterpriseQuickInfo
+    meta: dict | None = None
+
+
+class EnterpriseFeaturedItem(BaseModel):
+    id: int
+    external_code: str | None = None
+    display_name: str
+    trade_name: str | None = None
+    registered_name: str | None = None
+    province: TaxonomySummary | None = None
+    organization_type: TaxonomySummary | None = None
+    primary_industry_sector: TaxonomySummary | None = None
+    star_rating: int | None = None
+    website: str | None = None
+    is_featured: bool
+
+
+class EnterpriseFeaturedEnvelope(BaseModel):
+    success: bool = True
+    message: str = "ok"
+    data: list[EnterpriseFeaturedItem]
+    meta: dict[str, int]
+
+
 class GeoJSONPointGeometry(BaseModel):
     type: Literal["Point"]
     coordinates: tuple[float, float]
@@ -247,6 +325,20 @@ class DashboardProvinceBucket(BaseModel):
     mappable_count: int
 
 
+class DashboardSectorBucket(BaseModel):
+    primary_industry_sector_code: str
+    primary_industry_sector_name: str
+    organization_count: int
+    mappable_count: int
+
+
+class DashboardOrganizationTypeBucket(BaseModel):
+    organization_type_code: str
+    organization_type_name: str
+    organization_count: int
+    mappable_count: int
+
+
 class DashboardBreakdownMeta(BaseModel):
     group_by: str
     matched_total: int
@@ -261,6 +353,68 @@ class DashboardByProvinceEnvelope(BaseModel):
     message: str = "ok"
     data: list[DashboardProvinceBucket]
     meta: DashboardBreakdownMeta
+
+
+class DashboardBySectorEnvelope(BaseModel):
+    success: bool = True
+    message: str = "ok"
+    data: list[DashboardSectorBucket]
+    meta: DashboardBreakdownMeta
+
+
+class DashboardByOrganizationTypeEnvelope(BaseModel):
+    success: bool = True
+    message: str = "ok"
+    data: list[DashboardOrganizationTypeBucket]
+    meta: DashboardBreakdownMeta
+
+
+class DashboardGrowthBucket(BaseModel):
+    founded_year: int
+    total_count: int
+    active_count: int
+    inactive_count: int
+    social_impact_count: int
+
+
+class DashboardGrowthMeta(BaseModel):
+    matched_total: int
+    year_count: int
+    filters_applied: dict[str, str | bool | int]
+    cache_hit: bool
+    cache_ttl_seconds: int
+
+
+class DashboardGrowthEnvelope(BaseModel):
+    success: bool = True
+    message: str = "ok"
+    data: list[DashboardGrowthBucket]
+    meta: DashboardGrowthMeta
+
+
+class DashboardImpactFlowCell(BaseModel):
+    primary_industry_sector: TaxonomySummary | None = None
+    environmental_impact_area: TaxonomySummary | None = None
+    province: TaxonomySummary | None = None
+    organization_type: TaxonomySummary | None = None
+    organization_count: int
+    social_impact_count: int
+    mappable_count: int
+
+
+class DashboardImpactFlowMeta(BaseModel):
+    matched_total: int
+    cell_count: int
+    filters_applied: dict[str, str | bool | int]
+    cache_hit: bool
+    cache_ttl_seconds: int
+
+
+class DashboardImpactFlowsEnvelope(BaseModel):
+    success: bool = True
+    message: str = "ok"
+    data: list[DashboardImpactFlowCell]
+    meta: DashboardImpactFlowMeta
 
 
 def enterprise_list_params(
@@ -287,6 +441,12 @@ def enterprise_list_params(
         has_positive_social_impact=has_positive_social_impact,
         environmental_impact_area=environmental_impact_area,
     )
+
+
+def enterprise_featured_params(
+    limit: int = Query(default=5, ge=1, le=20),
+) -> EnterpriseFeaturedParams:
+    return EnterpriseFeaturedParams(limit=limit)
 
 
 def enterprise_search_params(
@@ -354,6 +514,48 @@ def dashboard_breakdown_params(
         primary_industry_sector=primary_industry_sector,
         has_positive_social_impact=has_positive_social_impact,
         environmental_impact_area=environmental_impact_area,
+    )
+
+
+def dashboard_growth_params(
+    province: str | None = Query(default=None),
+    operational_status: str | None = Query(default=None, alias="operationalStatus"),
+    organization_type: str | None = Query(default=None, alias="organizationType"),
+    primary_industry_sector: str | None = Query(default=None, alias="primaryIndustrySector"),
+    has_positive_social_impact: bool | None = Query(default=None, alias="hasPositiveSocialImpact"),
+    environmental_impact_area: str | None = Query(default=None, alias="environmentalImpactArea"),
+    year_from: int | None = Query(default=None, alias="yearFrom", ge=1800, le=2200),
+    year_to: int | None = Query(default=None, alias="yearTo", ge=1800, le=2200),
+) -> DashboardGrowthParams:
+    return DashboardGrowthParams(
+        province=province,
+        operational_status=operational_status,
+        organization_type=organization_type,
+        primary_industry_sector=primary_industry_sector,
+        has_positive_social_impact=has_positive_social_impact,
+        environmental_impact_area=environmental_impact_area,
+        year_from=year_from,
+        year_to=year_to,
+    )
+
+
+def dashboard_impact_flow_params(
+    province: str | None = Query(default=None),
+    operational_status: str | None = Query(default=None, alias="operationalStatus"),
+    organization_type: str | None = Query(default=None, alias="organizationType"),
+    primary_industry_sector: str | None = Query(default=None, alias="primaryIndustrySector"),
+    has_positive_social_impact: bool | None = Query(default=None, alias="hasPositiveSocialImpact"),
+    environmental_impact_area: str | None = Query(default=None, alias="environmentalImpactArea"),
+    limit: int = Query(default=500, ge=1, le=2000),
+) -> DashboardImpactFlowParams:
+    return DashboardImpactFlowParams(
+        province=province,
+        operational_status=operational_status,
+        organization_type=organization_type,
+        primary_industry_sector=primary_industry_sector,
+        has_positive_social_impact=has_positive_social_impact,
+        environmental_impact_area=environmental_impact_area,
+        limit=limit,
     )
 
 

@@ -5,7 +5,10 @@ from backend.libs.database import PostgreSQLClient
 from .schemas import (
     DashboardBreakdownDimension,
     DashboardBreakdownParams,
+    DashboardGrowthParams,
+    DashboardImpactFlowParams,
     EnterpriseFilterParams,
+    EnterpriseFeaturedParams,
     EnterpriseListParams,
     EnterpriseListSort,
     EnterpriseMapParams,
@@ -88,6 +91,29 @@ DASHBOARD_BREAKDOWN_DIMENSIONS: dict[DashboardBreakdownDimension, dict[str, str]
 class OrganizationCatalogRepository:
     def __init__(self, db: PostgreSQLClient) -> None:
         self._db = db
+
+    def list_featured_enterprises(self, params: EnterpriseFeaturedParams) -> list[dict]:
+        return self._db.fetch_all(
+            f"""
+            SELECT
+                o.id,
+                o.external_code,
+                coalesce(o.trade_name, o.registered_name) AS display_name,
+                o.trade_name,
+                o.registered_name,
+                {self._taxonomy_json("p")} AS province,
+                {self._taxonomy_json("ot")} AS organization_type,
+                {self._taxonomy_json("pis")} AS primary_industry_sector,
+                o.star_rating,
+                oc.website,
+                o.is_featured
+            {CATALOG_FROM_SQL}
+            WHERE o.is_featured IS TRUE
+            ORDER BY o.star_rating DESC NULLS LAST, o.updated_at DESC, o.id DESC
+            LIMIT %(limit)s
+            """,
+            {"limit": params.limit},
+        )
 
     def list_enterprises(self, params: EnterpriseListParams) -> tuple[list[dict], int]:
         where_sql, where_params = self._build_filter_query(params)
@@ -309,6 +335,128 @@ class OrganizationCatalogRepository:
             where_params,
         )
         return rows, matched_total
+
+    def get_dashboard_growth(self, params: DashboardGrowthParams) -> tuple[list[dict], int]:
+        where_sql, query_params = self._build_filter_query(params)
+        conditions = [where_sql, "o.founded_year IS NOT NULL"]
+        if params.year_from is not None:
+            conditions.append("o.founded_year >= %(year_from)s")
+            query_params["year_from"] = params.year_from
+        if params.year_to is not None:
+            conditions.append("o.founded_year <= %(year_to)s")
+            query_params["year_to"] = params.year_to
+
+        final_where_sql = " AND ".join(conditions)
+        matched_total = self._count_enterprises(final_where_sql, query_params)
+        rows = self._db.fetch_all(
+            f"""
+            SELECT
+                o.founded_year,
+                COUNT(*)::bigint AS total_count,
+                COUNT(*) FILTER (WHERE os.code = %(active_status_code)s)::bigint AS active_count,
+                COUNT(*) FILTER (
+                    WHERE os.code IS DISTINCT FROM %(active_status_code)s
+                )::bigint AS inactive_count,
+                COUNT(*) FILTER (
+                    WHERE o.has_positive_social_impact IS TRUE
+                )::bigint AS social_impact_count
+            {FILTER_FROM_SQL}
+            WHERE {final_where_sql}
+            GROUP BY o.founded_year
+            ORDER BY o.founded_year ASC
+            """,
+            {
+                **query_params,
+                "active_status_code": ACTIVE_STATUS_CODE,
+            },
+        )
+        return rows, matched_total
+
+    def get_dashboard_impact_flows(self, params: DashboardImpactFlowParams) -> tuple[list[dict], int]:
+        where_sql, query_params = self._build_filter_query(params)
+        matched_total = self._count_enterprises(where_sql, query_params)
+        query_params = {**query_params, "limit": params.limit}
+
+        rows = self._db.fetch_all(
+            f"""
+            SELECT
+                {self._taxonomy_json("pis")} AS primary_industry_sector,
+                {self._taxonomy_json("eia")} AS environmental_impact_area,
+                {self._taxonomy_json("p")} AS province,
+                {self._taxonomy_json("ot")} AS organization_type,
+                COUNT(DISTINCT o.id)::bigint AS organization_count,
+                COUNT(DISTINCT o.id) FILTER (
+                    WHERE o.has_positive_social_impact IS TRUE
+                )::bigint AS social_impact_count,
+                COUNT(DISTINCT o.id) FILTER (
+                    WHERE {MAPPABLE_GEOMETRY_SQL}
+                )::bigint AS mappable_count
+            {FILTER_FROM_SQL}
+            JOIN organization_environmental_impacts oei ON oei.organization_id = o.id
+            JOIN environmental_impact_areas eia ON eia.id = oei.environmental_impact_area_id
+            WHERE {where_sql}
+            GROUP BY pis.id, p.id, ot.id, eia.id
+            ORDER BY organization_count DESC, lower(pis.code) ASC, lower(eia.code) ASC
+            LIMIT %(limit)s
+            """,
+            query_params,
+        )
+        return rows, matched_total
+
+    def get_enterprise_quick(self, organization_id: int) -> dict | None:
+        return self._db.fetch_one(
+            f"""
+            SELECT
+                o.id,
+                o.external_code,
+                coalesce(o.trade_name, o.registered_name) AS display_name,
+                o.trade_name,
+                o.registered_name,
+                {self._taxonomy_json("p")} AS province,
+                ol.full_address,
+                oc.website,
+                {self._taxonomy_json("ot")} AS organization_type,
+                {self._taxonomy_json("os")} AS operational_status,
+                ol.location_precision
+            FROM organizations o
+            LEFT JOIN organization_contacts oc ON oc.organization_id = o.id
+            LEFT JOIN organization_locations ol ON ol.organization_id = o.id
+            LEFT JOIN provinces p ON p.id = ol.province_id
+            LEFT JOIN organization_types ot ON ot.id = o.organization_type_id
+            LEFT JOIN operational_statuses os ON os.id = o.operational_status_id
+            WHERE o.id = %s
+            LIMIT 1
+            """,
+            (organization_id,),
+        )
+
+    def get_latest_assessment_snapshot(self, organization_id: int) -> dict | None:
+        return self._db.fetch_one(
+            """
+            SELECT
+                organization_id,
+                overall_score,
+                pillars_json,
+                summary_json,
+                scoring_version,
+                created_at
+            FROM assessment_result_snapshots
+            WHERE organization_id = %s
+            ORDER BY created_at DESC, id DESC
+            LIMIT 1
+            """,
+            (organization_id,),
+        )
+
+    def list_assessment_pillars(self) -> list[dict]:
+        return self._db.fetch_all(
+            """
+            SELECT id, code, display_name, description, sort_order
+            FROM assessment_pillars
+            WHERE is_active IS TRUE
+            ORDER BY sort_order ASC, id ASC
+            """
+        )
 
     def get_enterprise_detail(self, organization_id: int) -> dict | None:
         return self._db.fetch_one(
