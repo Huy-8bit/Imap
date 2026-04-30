@@ -2,6 +2,11 @@
 
 Backend Python dùng `FastAPI`, có sẵn thư viện dùng chung cho HTTP, logging, PostgreSQL/PostGIS và Redis.
 
+Backend có thể chạy theo 2 mode:
+
+- `docker compose`: backend + PostGIS + Redis cùng network, backend expose host `127.0.0.1:8010`
+- host Python local: dùng `backend/.env` và tự chạy `python -m backend.service.main`
+
 ## Tổng quan source code
 
 ```text
@@ -79,7 +84,7 @@ cp devops/.env.example devops/.env
 - PostgreSQL: `127.0.0.1:5432`
 - Redis: `127.0.0.1:6379`
 
-### 2. Chạy dependency bằng Docker Compose
+### 2. Chạy full backend stack bằng Docker Compose
 
 ```bash
 docker compose --env-file devops/.env -f devops/docker-compose.yml up -d
@@ -89,8 +94,22 @@ Compose này sẽ tạo:
 
 - `postgis/postgis:16-3.4-alpine`
 - `redis:7-alpine`
+- `backend` build từ `backend/Dockerfile`
 - volume persist cho cả PostgreSQL và Redis
-- healthcheck cho 2 service
+- healthcheck cho 3 service
+
+Backend container startup flow:
+
+- wait `postgres` + `redis`
+- `python -m backend.scripts.migrate up`
+- `python -m backend.scripts.seed_taxonomies`
+- `python -m backend.scripts.import_organizations`
+- `python -m backend.service.main`
+
+Sau khi stack lên:
+
+- API base: `http://127.0.0.1:8010`
+- Swagger docs: `http://127.0.0.1:8010/docs`
 
 Muốn dừng:
 
@@ -104,7 +123,23 @@ Muốn dừng và xoá luôn data local:
 docker compose --env-file devops/.env -f devops/docker-compose.yml down -v
 ```
 
-### 3. Cài Python dependencies
+Logs backend:
+
+```bash
+docker compose --env-file devops/.env -f devops/docker-compose.yml logs -f backend
+```
+
+### 3. Chạy backend bằng Python local
+
+Nếu không muốn dùng backend container, có thể vẫn chạy PostGIS/Redis bằng compose rồi start backend trên host machine.
+
+Chạy riêng dependency:
+
+```bash
+docker compose --env-file devops/.env -f devops/docker-compose.yml up -d postgres redis
+```
+
+### 4. Cài Python dependencies
 
 Nếu chưa có virtualenv:
 
@@ -118,7 +153,7 @@ Cài package:
 backend/.venv/bin/pip install -r backend/requirements.txt
 ```
 
-### 4. Export biến môi trường cho backend
+### 5. Export biến môi trường cho backend
 
 Repo hiện tại đọc config trực tiếp từ environment variables, nên cần load file `backend/.env` vào shell trước khi chạy app:
 
@@ -128,7 +163,9 @@ source backend/.env
 set +a
 ```
 
-### 5. Chạy migration + seed
+`backend/.env.example` hiện mặc định `PORT=8010` để khớp FE local.
+
+### 6. Chạy migration + seed
 
 ```bash
 backend/.venv/bin/python -m backend.scripts.migrate up
@@ -144,7 +181,7 @@ backend/.venv/bin/python -m backend.scripts.seed_taxonomies --dry-run
 backend/.venv/bin/python -m backend.scripts.import_organizations --dry-run
 ```
 
-### 6. Chạy backend
+### 7. Chạy backend
 
 ```bash
 backend/.venv/bin/python -m backend.service.main
@@ -152,15 +189,15 @@ backend/.venv/bin/python -m backend.service.main
 
 Backend mặc định chạy ở:
 
-- `http://127.0.0.1:8000`
-- Swagger docs: `http://127.0.0.1:8000/docs`
+- `http://127.0.0.1:8010`
+- Swagger docs: `http://127.0.0.1:8010/docs`
 
 ## Kiểm tra nhanh
 
 ### Health check
 
 ```bash
-curl http://127.0.0.1:8000/api/health
+curl http://127.0.0.1:8010/api/health
 ```
 
 Response mong đợi khi đủ dependency:
@@ -182,66 +219,66 @@ Response mong đợi khi đủ dependency:
 ### Taxonomy check
 
 ```bash
-curl http://127.0.0.1:8000/api/taxonomies/provinces
+curl http://127.0.0.1:8010/api/taxonomies/provinces
 ```
 
 ### Enterprise catalog checks
 
 ```bash
-curl "http://127.0.0.1:8000/api/enterprises?page=1&page_size=20"
-curl "http://127.0.0.1:8000/api/enterprises/search?q=Catalog%20Alpha&page=1&page_size=5"
-curl "http://127.0.0.1:8000/api/enterprises/2"
+curl "http://127.0.0.1:8010/api/enterprises?page=1&page_size=20"
+curl "http://127.0.0.1:8010/api/enterprises/search?q=Catalog%20Alpha&page=1&page_size=5"
+curl "http://127.0.0.1:8010/api/enterprises/2"
 ```
 
 ### Enterprise map checks
 
 ```bash
-curl "http://127.0.0.1:8000/api/map/enterprises"
-curl "http://127.0.0.1:8000/api/map/enterprises?province=ho_chi_minh_city&operationalStatus=active&organizationType=private_enterprise&primaryIndustrySector=manufacturing&hasPositiveSocialImpact=true&environmentalImpactArea=climate_change"
-curl "http://127.0.0.1:8000/api/map/enterprises?bbox=105.80,21.00,105.90,21.08"
+curl "http://127.0.0.1:8010/api/map/enterprises"
+curl "http://127.0.0.1:8010/api/map/enterprises?province=ho_chi_minh_city&operationalStatus=active&organizationType=private_enterprise&primaryIndustrySector=manufacturing&hasPositiveSocialImpact=true&environmentalImpactArea=climate_change"
+curl "http://127.0.0.1:8010/api/map/enterprises?bbox=105.80,21.00,105.90,21.08"
 ```
 
 ### Overview stats checks
 
 ```bash
-curl "http://127.0.0.1:8000/api/stats/overview"
-curl "http://127.0.0.1:8000/api/stats/overview?province=ho_chi_minh_city&operationalStatus=active&organizationType=private_enterprise&primaryIndustrySector=manufacturing&hasPositiveSocialImpact=true&environmentalImpactArea=climate_change"
+curl "http://127.0.0.1:8010/api/stats/overview"
+curl "http://127.0.0.1:8010/api/stats/overview?province=ho_chi_minh_city&operationalStatus=active&organizationType=private_enterprise&primaryIndustrySector=manufacturing&hasPositiveSocialImpact=true&environmentalImpactArea=climate_change"
 ```
 
 ### Dashboard breakdown checks
 
 ```bash
-curl "http://127.0.0.1:8000/api/dashboard/by-province"
-curl "http://127.0.0.1:8000/api/dashboard/by-province?operationalStatus=active&organizationType=private_enterprise&primaryIndustrySector=manufacturing&hasPositiveSocialImpact=true&environmentalImpactArea=climate_change"
-curl "http://127.0.0.1:8000/api/dashboard/by-sector"
-curl "http://127.0.0.1:8000/api/dashboard/by-sector?province=ho_chi_minh_city&operationalStatus=active&organizationType=private_enterprise&hasPositiveSocialImpact=true&environmentalImpactArea=climate_change"
-curl "http://127.0.0.1:8000/api/dashboard/by-organization-type"
-curl "http://127.0.0.1:8000/api/dashboard/growth"
-curl "http://127.0.0.1:8000/api/dashboard/impact-flows?limit=10"
+curl "http://127.0.0.1:8010/api/dashboard/by-province"
+curl "http://127.0.0.1:8010/api/dashboard/by-province?operationalStatus=active&organizationType=private_enterprise&primaryIndustrySector=manufacturing&hasPositiveSocialImpact=true&environmentalImpactArea=climate_change"
+curl "http://127.0.0.1:8010/api/dashboard/by-sector"
+curl "http://127.0.0.1:8010/api/dashboard/by-sector?province=ho_chi_minh_city&operationalStatus=active&organizationType=private_enterprise&hasPositiveSocialImpact=true&environmentalImpactArea=climate_change"
+curl "http://127.0.0.1:8010/api/dashboard/by-organization-type"
+curl "http://127.0.0.1:8010/api/dashboard/growth"
+curl "http://127.0.0.1:8010/api/dashboard/impact-flows?limit=10"
 ```
 
 ### Auth + CMS quick checks
 
 ```bash
-curl -X POST "http://127.0.0.1:8000/api/auth/login" \
+curl -X POST "http://127.0.0.1:8010/api/auth/login" \
   -H "Content-Type: application/json" \
   -d '{"email":"admin@example.com","password":"Password123"}'
-curl "http://127.0.0.1:8000/api/iid/about"
-curl "http://127.0.0.1:8000/api/iid/team"
-curl "http://127.0.0.1:8000/api/iid/partners"
-curl "http://127.0.0.1:8000/api/news"
+curl "http://127.0.0.1:8010/api/iid/about"
+curl "http://127.0.0.1:8010/api/iid/team"
+curl "http://127.0.0.1:8010/api/iid/partners"
+curl "http://127.0.0.1:8010/api/news"
 ```
 
 ### Assessment, certification, reports quick checks
 
 ```bash
-curl "http://127.0.0.1:8000/api/assessment/questions"
-curl "http://127.0.0.1:8000/api/certification/directory"
-curl "http://127.0.0.1:8000/api/reports"
-curl "http://127.0.0.1:8000/api/reports/province"
-curl "http://127.0.0.1:8000/api/reports/sector"
-curl "http://127.0.0.1:8000/api/reports/due-dil"
-curl "http://127.0.0.1:8000/api/reports/sroi"
+curl "http://127.0.0.1:8010/api/assessment/questions"
+curl "http://127.0.0.1:8010/api/certification/directory"
+curl "http://127.0.0.1:8010/api/reports"
+curl "http://127.0.0.1:8010/api/reports/province"
+curl "http://127.0.0.1:8010/api/reports/sector"
+curl "http://127.0.0.1:8010/api/reports/due-dil"
+curl "http://127.0.0.1:8010/api/reports/sroi"
 ```
 
 ### Chạy regression tests đã có
@@ -417,3 +454,50 @@ backend/.venv/bin/python -m unittest \
 - `backend/.env.example`: mẫu env cho backend chạy trên host machine.
 - `devops/.env.example`: biến dùng cho Docker Compose.
 - `devops/docker-compose.yml`: khởi động PostGIS và Redis local.
+
+## Frontend (`fe/`)
+
+Frontend trong `fe/` hiện là app React + TypeScript + Vite, nối trực tiếp vào backend hiện có.
+
+### Cài dependencies
+
+```bash
+cd fe
+npm install
+```
+
+### Tạo env
+
+```bash
+cp fe/.env.example fe/.env
+```
+
+Biến quan trọng:
+
+- `VITE_API_BASE_URL`: base URL của backend, mặc định `http://127.0.0.1:8010`
+
+### Chạy local
+
+```bash
+cd fe
+npm run dev -- --host 127.0.0.1 --port 5173
+```
+
+### Build
+
+```bash
+cd fe
+npm run build
+```
+
+### Ghi chú FE
+
+- FE dùng API thật cho home, map, dashboard, enterprise detail, auth, assessment, certification, reports, IID CMS.
+- Auth flow dùng access token + refresh token; `/api/auth/refresh` rotate session nên access token cũ sẽ không còn hợp lệ sau refresh.
+- Những phần backend/business chưa đủ dữ liệu sẽ render rõ ràng theo trạng thái thật:
+  - map geometry chưa có -> không render marker giả
+  - featured enterprises rỗng -> empty state
+  - assessment questions rỗng -> placeholder thay vì form SIM giả
+  - pillar analytics chưa có endpoint -> “Đang cập nhật”
+  - SROI chưa có formula -> chỉ hiển thị raw signals
+  - IID team/partners rỗng -> empty state

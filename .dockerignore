@@ -1,0 +1,11 @@
+.git
+.DS_Store
+**/__pycache__/
+**/*.pyc
+backend/.venv/
+backend/runtime_logs/
+backend/storage/
+fe/node_modules/
+fe/dist/
+devops/.env
+backend/.env

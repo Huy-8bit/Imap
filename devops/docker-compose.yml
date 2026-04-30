@@ -40,6 +40,69 @@ services:
     networks:
       - backend_local
 
+  backend:
+    build:
+      context: ..
+      dockerfile: backend/Dockerfile
+    restart: unless-stopped
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    environment:
+      APP_NAME: imap
+      APP_ENV: local
+      APP_DEBUG: "false"
+      APP_VERSION: 0.1.0
+      HOST: 0.0.0.0
+      PORT: 8010
+      WORKERS: 1
+      RELOAD: "false"
+      CORS_ORIGINS: "*"
+      LOG_LEVEL: INFO
+      LOG_JSON: "false"
+      LOG_FILE: "false"
+      LOG_DIR: runtime_logs
+      CACHE_DEFAULT_TTL_SECONDS: 300
+      CACHE_OVERVIEW_TTL_SECONDS: 3600
+      PG_HOST: postgres
+      PG_PORT: 5432
+      PG_DATABASE: ${POSTGRES_DB:-imap}
+      PG_USER: ${POSTGRES_USER:-postgres}
+      PG_PASSWORD: ${POSTGRES_PASSWORD:-postgres}
+      PG_MIN_CONN: 1
+      PG_MAX_CONN: 10
+      REDIS_HOST: redis
+      REDIS_PORT: 6379
+      REDIS_DB: 0
+      REDIS_PASSWORD: ""
+      JWT_SECRET: ${JWT_SECRET:-change-me}
+      JWT_ACCESS_TTL_MINUTES: 15
+      JWT_REFRESH_TTL_DAYS: 30
+      FILE_STORAGE_ROOT: /app/storage
+      SEED_DATA_DIR: docs/iMapVN/Data/Sample-iMap-Json
+      ORGANIZATION_DATASET_PATH: ${ORGANIZATION_DATASET_PATH:-docs/iMapVN/Data/Sample-iMap-Json/dataEng.json}
+      BOOTSTRAP_WAIT_TIMEOUT_SECONDS: ${BOOTSTRAP_WAIT_TIMEOUT_SECONDS:-120}
+      BOOTSTRAP_SEED_TAXONOMIES: ${BOOTSTRAP_SEED_TAXONOMIES:-true}
+      BOOTSTRAP_IMPORT_ORGANIZATIONS: ${BOOTSTRAP_IMPORT_ORGANIZATIONS:-true}
+    ports:
+      - "${BACKEND_HOST_PORT:-8010}:8010"
+    healthcheck:
+      test:
+        [
+          "CMD",
+          "python",
+          "-c",
+          "import sys, urllib.request; resp = urllib.request.urlopen('http://127.0.0.1:8010/api/health', timeout=5); sys.exit(0 if resp.status == 200 else 1)",
+        ]
+      interval: 15s
+      timeout: 5s
+      retries: 10
+      start_period: 45s
+    networks:
+      - backend_local
+
 volumes:
   postgres_data:
   redis_data:

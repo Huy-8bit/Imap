@@ -2,6 +2,25 @@
 
 Ngày cập nhật: 2026-04-27
 
+## Update 2026-04-30
+
+- Đã dockerize backend hoàn chỉnh:
+  - thêm `backend/Dockerfile`
+  - thêm `backend/scripts/docker-entrypoint.sh`
+  - mở rộng `devops/docker-compose.yml` với service `backend`
+- Backend compose flow hiện:
+  - wait `postgres` + `redis`
+  - migrate `up`
+  - seed taxonomies
+  - import organizations từ sample dataset
+  - boot FastAPI app
+- Backend compose expose host `127.0.0.1:8010` để khớp `fe/.env.example`
+- Cập nhật `devops/.env.example`, `backend/.env.example`, `README.md`, `fe/README.md`
+- Minimal verification Docker:
+  - `docker compose --env-file devops/.env.example -f devops/docker-compose.yml up --build -d`
+  - `curl http://127.0.0.1:8010/api/health`
+
+
 ## Trạng thái hiện tại
 
 Backend đã được nối gần đầy đủ cho phần implementable của master plan trên schema thật:
