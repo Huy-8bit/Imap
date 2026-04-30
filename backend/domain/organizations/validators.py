@@ -20,6 +20,16 @@ def clean_text(value: Any) -> str | None:
     collapsed = re.sub(r"\s+", " ", text).strip()
     return collapsed or None
 
+def validate_password_strength(password: str) -> str:
+    cleaned = clean_text(password) # Tận dụng hàm clean_text có sẵn
+    if not cleaned or len(cleaned) < 8:
+        raise RecordValidationError(
+            field_name="password",
+            error_code="weak_password",
+            message="Password must be at least 8 characters long."
+        )
+    return cleaned
+
 
 def normalize_lookup_key(value: str | None) -> str | None:
     cleaned = clean_text(value)
