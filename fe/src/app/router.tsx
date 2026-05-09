@@ -2,7 +2,7 @@ import { createBrowserRouter, Navigate } from 'react-router-dom'
 
 import { AdminLayout } from './layouts/AdminLayout'
 import { AppLayout } from './layouts/AppLayout'
-import { RequireAdmin, RequireEnterprise } from '../lib/auth/auth'
+import { RequireAdmin, RequireEnterprise, RequireGuest } from '../lib/auth/auth'
 import { AboutPage } from '../pages/AboutPage'
 import { AdminAboutPage } from '../pages/AdminAboutPage'
 import { AdminCertificationsPage } from '../pages/AdminCertificationsPage'
@@ -33,8 +33,22 @@ export const router = createBrowserRouter([
       { path: 'enterprises/:enterpriseId', element: <EnterpriseDetailPage /> },
       { path: 'impactonomy', element: <ImpactonomyPage /> },
       { path: 'impactonomy/directory', element: <CertificationDirectoryPage /> },
-      { path: 'login', element: <LoginPage /> },
-      { path: 'register', element: <RegisterPage /> },
+      {
+        path: 'login',
+        element: (
+          <RequireGuest>
+            <LoginPage />
+          </RequireGuest>
+        ),
+      },
+      {
+        path: 'register',
+        element: (
+          <RequireGuest>
+            <RegisterPage />
+          </RequireGuest>
+        ),
+      },
       {
         path: 'assessment',
         element: (

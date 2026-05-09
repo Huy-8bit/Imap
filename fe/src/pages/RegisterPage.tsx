@@ -1,15 +1,16 @@
 import { useState } from 'react'
-import { useNavigate } from 'react-router-dom'
+import { useLocation, useNavigate } from 'react-router-dom'
 
 import { Button } from '../components/ui/Button'
 import { Card } from '../components/ui/Card'
 import { Field, Input } from '../components/ui/Field'
 import { ErrorState } from '../components/ui/States'
-import { useAuth } from '../lib/auth/auth'
+import { getDefaultAuthRedirectPath, useAuth } from '../lib/auth/auth'
 
 export function RegisterPage() {
   const { register } = useAuth()
   const navigate = useNavigate()
+  const location = useLocation()
   const [form, setForm] = useState({
     email: '',
     password: '',
@@ -18,6 +19,7 @@ export function RegisterPage() {
   })
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [error, setError] = useState<string | null>(null)
+  const destination = (location.state as { from?: string } | null)?.from
 
   return (
     <div className="auth-page">
@@ -35,8 +37,8 @@ export function RegisterPage() {
               setError(null)
               setIsSubmitting(true)
               try {
-                await register(form)
-                navigate('/assessment', { replace: true })
+                const user = await register(form)
+                navigate(destination || getDefaultAuthRedirectPath(user), { replace: true })
               } catch (submissionError) {
                 setError(submissionError instanceof Error ? submissionError.message : 'Đăng ký thất bại')
               } finally {
