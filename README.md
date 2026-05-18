@@ -7,6 +7,10 @@ Backend có thể chạy theo 2 mode:
 - `docker compose`: backend + PostGIS + Redis cùng network, backend expose host `127.0.0.1:8010`
 - host Python local: dùng `backend/.env` và tự chạy `python -m backend.service.main`
 
+Tài liệu API tổng hợp 1 file:
+
+- [docs/API_README.md](/Users/huy8bit/Desktop/DEV/project/imap/docs/API_README.md)
+
 ## Tổng quan source code
 
 ```text
