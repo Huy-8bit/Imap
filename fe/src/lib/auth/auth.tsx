@@ -25,6 +25,8 @@ interface AuthContextValue {
 }
 
 const AUTH_STORAGE_KEY = 'imapvietnam.auth'
+const ACCESS_TOKEN_REFRESH_LEAD_MS = 60_000
+const ACCESS_TOKEN_REFRESH_MIN_DELAY_MS = 5_000
 
 const AuthContext = createContext<AuthContextValue | null>(null)
 
@@ -66,11 +68,32 @@ export function AuthProvider({
   const [user, setUser] = useState<AuthUserProfile | null>(null)
   const [status, setStatus] = useState<'loading' | 'authenticated' | 'guest'>('loading')
   const tokensRef = useRef<AuthTokens | null>(tokens)
+  const refreshTimeoutRef = useRef<number | null>(null)
 
   useEffect(() => {
     tokensRef.current = tokens
     persistTokens(tokens)
   }, [tokens])
+
+  function applyTokens(nextTokens: AuthTokens | null) {
+    tokensRef.current = nextTokens
+    persistTokens(nextTokens)
+    setTokens(nextTokens)
+  }
+
+  function clearSessionState() {
+    applyTokens(null)
+    setUser(null)
+    setStatus('guest')
+    queryClient.clear()
+  }
+
+  function clearRefreshTimer() {
+    if (refreshTimeoutRef.current !== null) {
+      window.clearTimeout(refreshTimeoutRef.current)
+      refreshTimeoutRef.current = null
+    }
+  }
 
   useEffect(() => {
     apiClient.setAuthAdapter({
@@ -83,14 +106,11 @@ export function AuthProvider({
         }
         const envelope = await authApi.refresh(currentRefreshToken)
         const nextTokens = toStoredTokens(envelope.data)
-        setTokens(nextTokens)
+        applyTokens(nextTokens)
         return nextTokens.accessToken
       },
       clearSession: () => {
-        setTokens(null)
-        setUser(null)
-        setStatus('guest')
-        queryClient.clear()
+        clearSessionState()
       },
     })
 
@@ -118,9 +138,7 @@ export function AuthProvider({
         }
       } catch {
         if (!cancelled) {
-          setTokens(null)
-          setUser(null)
-          setStatus('guest')
+          clearSessionState()
         }
       }
     }
@@ -131,9 +149,36 @@ export function AuthProvider({
     }
   }, [])
 
+  useEffect(() => {
+    clearRefreshTimer()
+
+    if (!tokens?.accessExpiresAt) {
+      return
+    }
+
+    const accessExpiresAt = new Date(tokens.accessExpiresAt).getTime()
+    if (Number.isNaN(accessExpiresAt)) {
+      return
+    }
+
+    const refreshDelay = accessExpiresAt - Date.now() - ACCESS_TOKEN_REFRESH_LEAD_MS
+    if (refreshDelay <= 0) {
+      void refreshSession()
+      return
+    }
+
+    refreshTimeoutRef.current = window.setTimeout(() => {
+      void refreshSession()
+    }, Math.max(refreshDelay, ACCESS_TOKEN_REFRESH_MIN_DELAY_MS))
+
+    return () => {
+      clearRefreshTimer()
+    }
+  }, [tokens?.accessExpiresAt])
+
   async function establishSession(envelope: ApiEnvelope<AuthTokenData, unknown>) {
     const nextTokens = toStoredTokens(envelope.data)
-    setTokens(nextTokens)
+    applyTokens(nextTokens)
     const me = await authApi.me()
     setUser(me.data)
     setStatus('authenticated')
@@ -162,10 +207,7 @@ export function AuthProvider({
         await authApi.logout(tokensRef.current.refreshToken)
       }
     } finally {
-      setTokens(null)
-      setUser(null)
-      setStatus('guest')
-      queryClient.clear()
+      clearSessionState()
     }
   }
 
@@ -177,13 +219,10 @@ export function AuthProvider({
     try {
       const envelope = await authApi.refresh(refreshToken)
       const nextTokens = toStoredTokens(envelope.data)
-      setTokens(nextTokens)
+      applyTokens(nextTokens)
       return nextTokens.accessToken
     } catch {
-      setTokens(null)
-      setUser(null)
-      setStatus('guest')
-      queryClient.clear()
+      clearSessionState()
       return null
     }
   }
@@ -212,6 +251,22 @@ export function useAuth() {
     throw new Error('useAuth must be used within AuthProvider')
   }
   return context
+}
+
+export function getDefaultAuthRedirectPath(user: Pick<AuthUserProfile, 'role'>) {
+  return user.role === 'admin' ? '/admin' : '/assessment'
+}
+
+export function RequireGuest({ children }: PropsWithChildren) {
+  const { status, user } = useAuth()
+
+  if (status === 'loading') {
+    return <div className="page-message">Đang kiểm tra phiên đăng nhập...</div>
+  }
+  if (status === 'authenticated' && user) {
+    return <Navigate to={getDefaultAuthRedirectPath(user)} replace />
+  }
+  return <>{children}</>
 }
 
 export function RequireEnterprise({ children }: PropsWithChildren) {

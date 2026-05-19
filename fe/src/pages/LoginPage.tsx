@@ -5,7 +5,7 @@ import { Button } from '../components/ui/Button'
 import { Card } from '../components/ui/Card'
 import { Field, Input } from '../components/ui/Field'
 import { ErrorState } from '../components/ui/States'
-import { useAuth } from '../lib/auth/auth'
+import { getDefaultAuthRedirectPath, useAuth } from '../lib/auth/auth'
 
 export function LoginPage() {
   const { login } = useAuth()
@@ -16,7 +16,7 @@ export function LoginPage() {
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [error, setError] = useState<string | null>(null)
 
-  const destination = (location.state as { from?: string } | null)?.from || '/assessment'
+  const destination = (location.state as { from?: string } | null)?.from
 
   return (
     <div className="auth-page">
@@ -33,8 +33,8 @@ export function LoginPage() {
               setError(null)
               setIsSubmitting(true)
               try {
-                await login({ email, password })
-                navigate(destination, { replace: true })
+                const user = await login({ email, password })
+                navigate(destination || getDefaultAuthRedirectPath(user), { replace: true })
               } catch (submissionError) {
                 setError(submissionError instanceof Error ? submissionError.message : 'Đăng nhập thất bại')
               } finally {
