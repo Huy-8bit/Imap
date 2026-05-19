@@ -423,11 +423,17 @@ backend/.venv/bin/python -m unittest \
 - `backend/service/routes/taxonomies.py` trả taxonomy đã seed theo response envelope hiện có.
 - `backend/service/routes/enterprises.py` hiện có:
   - `GET /api/enterprises`
+  - `POST /api/enterprises`
   - `GET /api/enterprises/search`
+  - `POST /api/enterprises/import`
   - `GET /api/enterprises/featured`
   - `GET /api/enterprises/{id}/quick`
   - `GET /api/enterprises/{id}/radar`
   - `GET /api/enterprises/{id}`
+- Admin hiện có 2 đường ingest organization qua HTTP:
+  - `POST /api/enterprises`: upsert 1 organization
+  - `POST /api/enterprises/import`: import nhiều organization, hỗ trợ `dryRun`
+- Các script `backend.scripts.migrate`, `backend.scripts.seed_taxonomies`, `backend.scripts.import_organizations` vẫn là đường bootstrap/import nền của môi trường.
 - `backend/service/routes/dashboard.py` hiện có:
   - `GET /api/dashboard/by-province`
   - `GET /api/dashboard/by-sector`

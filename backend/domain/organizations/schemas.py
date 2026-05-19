@@ -417,6 +417,91 @@ class DashboardImpactFlowsEnvelope(BaseModel):
     meta: DashboardImpactFlowMeta
 
 
+class OrganizationImportContactInput(BaseModel):
+    website: str | None = None
+    email: str | None = None
+    phone: str | None = None
+
+
+class OrganizationImportLocationInput(BaseModel):
+    province: str | None = None
+    ward: str | None = None
+
+
+class OrganizationImportGeneralInput(BaseModel):
+    trade_name: str | None = Field(default=None, alias="tradeName")
+    registered_name: str | None = Field(default=None, alias="registeredName")
+    tax_code: str | None = Field(default=None, alias="taxCode")
+    founded_year: int | str | None = Field(default=None, alias="foundedYear")
+    operational_status: str | None = Field(default=None, alias="operationalStatus")
+    closed_year: int | str | None = Field(default=None, alias="closedYear")
+    location: OrganizationImportLocationInput = Field(default_factory=OrganizationImportLocationInput)
+    contacts: OrganizationImportContactInput = Field(default_factory=OrganizationImportContactInput)
+
+
+class OrganizationImportClassificationInput(BaseModel):
+    organization_type: str | None = Field(default=None, alias="organizationType")
+    primary_industry_sector: str | None = Field(default=None, alias="primaryIndustrySector")
+    other_industry_sectors: list[str] = Field(default_factory=list, alias="otherIndustrySectors")
+    has_positive_social_impact: bool | str | int | None = Field(default=None, alias="hasPositiveSocialImpact")
+    environmental_impact_areas: list[str] = Field(default_factory=list, alias="environmentalImpactAreas")
+    primary_product_type: str | None = Field(default=None, alias="primaryProductType")
+    other_product_type: str | None = Field(default=None, alias="otherProductType")
+
+
+class OrganizationImportRecordInput(BaseModel):
+    id: str | None = None
+    general: OrganizationImportGeneralInput
+    classification: OrganizationImportClassificationInput
+
+
+class OrganizationImportRequest(BaseModel):
+    records: list[OrganizationImportRecordInput] = Field(min_length=1)
+    source_name: str | None = Field(default=None, alias="sourceName")
+    dry_run: bool = Field(default=False, alias="dryRun")
+
+
+class OrganizationImportErrorResponse(BaseModel):
+    record_index: int
+    external_code: str | None = None
+    field_name: str
+    error_code: str
+    error_message: str
+
+
+class OrganizationImportSummaryData(BaseModel):
+    source_name: str
+    source_path: str
+    total_records: int
+    inserted_count: int
+    updated_count: int
+    skipped_count: int
+    error_count: int
+    status: str
+    dry_run: bool
+    errors: list[OrganizationImportErrorResponse] = Field(default_factory=list)
+
+
+class OrganizationImportEnvelope(BaseModel):
+    success: bool = True
+    message: str = "ok"
+    data: OrganizationImportSummaryData
+    meta: dict | None = None
+
+
+class OrganizationUpsertData(BaseModel):
+    operation: Literal["inserted", "updated"]
+    summary: OrganizationImportSummaryData
+    enterprise: EnterpriseDetail
+
+
+class OrganizationUpsertEnvelope(BaseModel):
+    success: bool = True
+    message: str = "ok"
+    data: OrganizationUpsertData
+    meta: dict | None = None
+
+
 def enterprise_list_params(
     page: int = Query(default=1, ge=1),
     page_size: int = Query(default=20, ge=1, le=100),

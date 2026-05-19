@@ -12,6 +12,7 @@ from .repository import (
     OrganizationImportRepository,
     OrganizationLocationPayload,
     OrganizationUpsertPayload,
+    UpsertResult,
 )
 from .validators import (
     RecordValidationError,
@@ -74,18 +75,73 @@ class OrganizationImportService:
             raise ValueError(f"Dataset has invalid organizations list: {dataset_path}")
 
         resolved_source_name = source_name or dataset_path.stem
+        summary, _ = self._import_records(
+            records,
+            source_name=resolved_source_name,
+            source_type="json",
+            source_path=str(dataset_path),
+            dry_run=dry_run,
+        )
+        return summary
+
+    def import_records(
+        self,
+        records: list[dict[str, Any]],
+        *,
+        source_name: str,
+        source_path: str,
+        source_type: str = "api",
+        dry_run: bool = False,
+    ) -> ImportSummary:
+        summary, _ = self._import_records(
+            records,
+            source_name=source_name,
+            source_type=source_type,
+            source_path=source_path,
+            dry_run=dry_run,
+        )
+        return summary
+
+    def upsert_record(
+        self,
+        record: dict[str, Any],
+        *,
+        source_name: str,
+        source_path: str,
+        source_type: str = "api",
+    ) -> tuple[ImportSummary, UpsertResult | None]:
+        summary, results = self._import_records(
+            [record],
+            source_name=source_name,
+            source_type=source_type,
+            source_path=source_path,
+            dry_run=False,
+        )
+        result = results[0] if results else None
+        return summary, result
+
+    def _import_records(
+        self,
+        records: list[dict[str, Any]],
+        *,
+        source_name: str,
+        source_type: str,
+        source_path: str,
+        dry_run: bool,
+    ) -> tuple[ImportSummary, list[UpsertResult]]:
         lookups = self._repository.load_taxonomy_lookups(self.REQUIRED_TAXONOMIES)
         errors: list[ImportErrorRecord] = []
         inserted_count = 0
         updated_count = 0
         skipped_count = 0
         import_run_id: int | None = None
+        results: list[UpsertResult] = []
 
         if not dry_run:
             import_run_id = self._repository.create_import_run(
-                source_name=resolved_source_name,
-                source_type="json",
-                source_path=str(dataset_path),
+                source_name=source_name,
+                source_type=source_type,
+                source_path=source_path,
                 total_records=len(records),
             )
 
@@ -100,10 +156,11 @@ class OrganizationImportService:
                     result = self._repository.upsert_organization(
                         normalized,
                         import_run_id=import_run_id,
-                        source_name=resolved_source_name,
-                        source_path=str(dataset_path),
+                        source_name=source_name,
+                        source_path=source_path,
                         source_record_id=external_code,
                     )
+                    results.append(result)
                     if result.operation == "inserted":
                         inserted_count += 1
                     else:
@@ -142,8 +199,8 @@ class OrganizationImportService:
                 )
 
             return ImportSummary(
-                source_name=resolved_source_name,
-                source_path=str(dataset_path),
+                source_name=source_name,
+                source_path=source_path,
                 total_records=len(records),
                 inserted_count=inserted_count,
                 updated_count=updated_count,
@@ -152,7 +209,7 @@ class OrganizationImportService:
                 status=status,
                 dry_run=dry_run,
                 errors=errors,
-            )
+            ), results
         except Exception:
             if import_run_id is not None:
                 self._repository.finish_import_run(

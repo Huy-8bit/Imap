@@ -2,7 +2,13 @@ from __future__ import annotations
 
 from fastapi import APIRouter, Depends, Path
 
-from backend.domain.organizations import EnterpriseCatalogService, OrganizationCatalogRepository
+from backend.domain.auth.schemas import AuthenticatedUser
+from backend.domain.organizations import (
+    EnterpriseCatalogService,
+    OrganizationAdminService,
+    OrganizationCatalogRepository,
+    OrganizationImportRepository,
+)
 from backend.domain.organizations.schemas import (
     EnterpriseDetailEnvelope,
     EnterpriseFeaturedEnvelope,
@@ -12,12 +18,16 @@ from backend.domain.organizations.schemas import (
     EnterpriseQuickEnvelope,
     EnterpriseRadarEnvelope,
     EnterpriseSearchParams,
+    OrganizationImportEnvelope,
+    OrganizationImportRecordInput,
+    OrganizationImportRequest,
+    OrganizationUpsertEnvelope,
     enterprise_featured_params,
     enterprise_list_params,
     enterprise_search_params,
 )
 from backend.libs.database import PostgreSQLClient
-from backend.service.dependencies import get_postgresql_client
+from backend.service.dependencies import get_postgresql_client, require_roles
 
 router = APIRouter(prefix="/enterprises", tags=["enterprises"])
 
@@ -31,6 +41,19 @@ async def list_enterprises(
     return service.list_enterprises(params)
 
 
+@router.post("", response_model=OrganizationUpsertEnvelope)
+async def upsert_enterprise(
+    payload: OrganizationImportRecordInput,
+    user: AuthenticatedUser = Depends(require_roles("admin")),
+    db: PostgreSQLClient = Depends(get_postgresql_client),
+) -> OrganizationUpsertEnvelope:
+    service = OrganizationAdminService(
+        OrganizationImportRepository(db),
+        OrganizationCatalogRepository(db),
+    )
+    return service.upsert_enterprise(payload, current_user=user)
+
+
 @router.get("/search", response_model=EnterpriseListEnvelope)
 async def search_enterprises(
     params: EnterpriseSearchParams = Depends(enterprise_search_params),
@@ -38,6 +61,19 @@ async def search_enterprises(
 ) -> EnterpriseListEnvelope:
     service = EnterpriseCatalogService(OrganizationCatalogRepository(db))
     return service.search_enterprises(params)
+
+
+@router.post("/import", response_model=OrganizationImportEnvelope)
+async def import_enterprises(
+    payload: OrganizationImportRequest,
+    user: AuthenticatedUser = Depends(require_roles("admin")),
+    db: PostgreSQLClient = Depends(get_postgresql_client),
+) -> OrganizationImportEnvelope:
+    service = OrganizationAdminService(
+        OrganizationImportRepository(db),
+        OrganizationCatalogRepository(db),
+    )
+    return service.import_enterprises(payload, current_user=user)
 
 
 @router.get("/featured", response_model=EnterpriseFeaturedEnvelope)

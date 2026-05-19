@@ -20,6 +20,19 @@ Ngày cập nhật: 2026-04-27
   - `docker compose --env-file devops/.env.example -f devops/docker-compose.yml up --build -d`
   - `curl http://127.0.0.1:8010/api/health`
 
+## Update 2026-05-18
+
+- Đã thêm admin HTTP ingest APIs cho organizations:
+  - `POST /api/enterprises`
+  - `POST /api/enterprises/import`
+- Hai API này reuse trực tiếp import pipeline hiện có:
+  - normalize/validate taxonomy
+  - dedupe theo `tax_code`, fallback `registered_name`
+  - upsert organization/contact/location/link tables
+  - ghi `organization_import_runs` + audit/error logs
+- `POST /api/enterprises/import` hỗ trợ `dryRun`
+- Import bootstrap qua CLI/scripts vẫn giữ nguyên cho environment setup
+
 
 ## Trạng thái hiện tại
 

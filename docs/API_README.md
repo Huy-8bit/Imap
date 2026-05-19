@@ -147,6 +147,21 @@ Auth:
 
 - public
 
+#### `POST /api/enterprises`
+
+Mục đích:
+
+- admin tạo mới hoặc upsert 1 organization bằng payload import-compatible
+
+Auth:
+
+- `admin`
+
+Ghi chú:
+
+- reuse đúng pipeline normalize/validate/upsert của import service
+- response trả cả `operation` (`inserted` hoặc `updated`) và enterprise detail sau khi ghi DB
+
 #### `GET /api/enterprises/search`
 
 Mục đích:
@@ -162,6 +177,27 @@ Query chính:
 Auth:
 
 - public
+
+#### `POST /api/enterprises/import`
+
+Mục đích:
+
+- admin import nhiều organization qua HTTP
+
+Auth:
+
+- `admin`
+
+Body chính:
+
+- `records`: mảng organization records theo format import hiện có
+- `sourceName`: optional
+- `dryRun`: optional
+
+Ghi chú:
+
+- `dryRun=true` chỉ validate và trả summary/errors, không ghi DB
+- `dryRun=false` sẽ create/update organization thật và ghi audit import run
 
 #### `GET /api/enterprises/featured`
 
@@ -708,6 +744,8 @@ Auth:
 
 ### Admin writes
 
+- `POST /api/enterprises`
+- `POST /api/enterprises/import`
 - `PUT /api/certification/{applicationId}/review`
 - `PUT /api/certification/{certificationId}/upgrade`
 - `POST /api/news`
@@ -721,13 +759,18 @@ Auth:
 
 Đây là phần quan trọng để tránh nhầm:
 
-Hiện tại backend **không có HTTP bulk import endpoint** kiểu:
+Hiện tại backend có **2 đường import/admin ingest qua HTTP**:
 
-- `POST /api/import/...`
-- `POST /api/seed/...`
-- `POST /api/organizations/import`
+- `POST /api/enterprises`
+- `POST /api/enterprises/import`
 
-### Data import ban đầu hiện đi qua CLI/scripts, không đi qua HTTP API
+Nhưng backend vẫn **chưa có** HTTP endpoint riêng cho:
+
+- migrate schema
+- seed taxonomies
+- bulk import taxonomy/master data ngoài organizations
+
+### Data import ban đầu và bootstrap hệ thống vẫn đi qua CLI/scripts
 
 Các entry point import/seed chính là:
 
@@ -760,8 +803,8 @@ Khi chạy backend bằng Docker Compose, entrypoint hiện làm:
 
 Tức là:
 
-- import data master hiện tại = **script/bootstrap**
-- không phải HTTP API public/admin
+- import organizations thủ công từ admin UI/HTTP đã có thể đi qua `POST /api/enterprises` hoặc `POST /api/enterprises/import`
+- nhưng bootstrap dữ liệu nền của môi trường vẫn đi qua **script/bootstrap**
 
 ### Nếu cần “import data qua API” sau này
 
@@ -780,7 +823,9 @@ Các API FE public có thể dùng ngay:
 - `GET /api/taxonomies`
 - `GET /api/taxonomies/{taxonomy_name}`
 - `GET /api/enterprises`
+- `POST /api/enterprises`
 - `GET /api/enterprises/search`
+- `POST /api/enterprises/import`
 - `GET /api/enterprises/featured`
 - `GET /api/enterprises/{id}`
 - `GET /api/enterprises/{id}/quick`
@@ -836,4 +881,3 @@ Các API FE public có thể dùng ngay:
   - `README.md`
   - `task/progress_master.md`
   - `task/backend_docker_handoff.md`
-

@@ -7,10 +7,14 @@ from typing import TypeVar
 
 from pydantic import BaseModel, ValidationError
 
+from backend.domain.auth.schemas import AuthenticatedUser
+from backend.domain.auth.service import AuthService
 from backend.libs.database import RedisCommands
 from backend.libs.http.errors import AppError, NotFoundError
 
 from .catalog_repository import OrganizationCatalogRepository
+from .importer import OrganizationImportService, summary_to_dict
+from .repository import OrganizationImportRepository
 from .schemas import (
     DashboardBreakdownDimension,
     DashboardBreakdownMeta,
@@ -50,13 +54,19 @@ from .schemas import (
     EnterpriseRadarPillarScore,
     EnterpriseSearchParams,
     GeoJSONPointGeometry,
+    OrganizationImportEnvelope,
+    OrganizationImportRecordInput,
+    OrganizationImportRequest,
+    OrganizationImportSummaryData,
+    OrganizationUpsertData,
+    OrganizationUpsertEnvelope,
     PaginationMeta,
     StatsOverviewData,
     StatsOverviewEnvelope,
     StatsOverviewMeta,
     StatsOverviewParams,
 )
-from .validators import clean_text
+from .validators import RecordValidationError, clean_text
 
 logger = logging.getLogger(__name__)
 ModelT = TypeVar("ModelT", bound=BaseModel)
@@ -230,6 +240,83 @@ class EnterpriseCatalogService:
             scored_at=snapshot.get("created_at") if snapshot else None,
             pillars=scores,
         )
+
+
+class OrganizationAdminService:
+    SINGLE_RECORD_SOURCE_PATH = "api:/api/enterprises"
+    BULK_IMPORT_SOURCE_PATH = "api:/api/enterprises/import"
+
+    def __init__(
+        self,
+        import_repository: OrganizationImportRepository,
+        catalog_repository: OrganizationCatalogRepository,
+    ) -> None:
+        self._import_service = OrganizationImportService(import_repository)
+        self._catalog_service = EnterpriseCatalogService(catalog_repository)
+
+    def upsert_enterprise(
+        self,
+        payload: OrganizationImportRecordInput,
+        *,
+        current_user: AuthenticatedUser,
+    ) -> OrganizationUpsertEnvelope:
+        AuthService.ensure_roles(current_user, ["admin"])
+        record = payload.model_dump(by_alias=True, mode="json")
+        try:
+            summary, result = self._import_service.upsert_record(
+                record,
+                source_name=self._build_source_name(current_user, suffix="single"),
+                source_path=self.SINGLE_RECORD_SOURCE_PATH,
+            )
+        except RecordValidationError as exc:
+            raise AppError(
+                "organization validation failed",
+                status_code=422,
+                detail={
+                    "field_name": exc.field_name,
+                    "error_code": exc.error_code,
+                    "error_message": exc.message,
+                },
+            ) from exc
+
+        if result is None:
+            raise AppError(
+                "organization import failed",
+                status_code=422,
+                detail=summary_to_dict(summary),
+            )
+
+        detail_envelope = self._catalog_service.get_enterprise_detail(result.organization_id)
+        return OrganizationUpsertEnvelope(
+            data=OrganizationUpsertData(
+                operation=result.operation,
+                summary=OrganizationImportSummaryData.model_validate(summary_to_dict(summary)),
+                enterprise=detail_envelope.data,
+            )
+        )
+
+    def import_enterprises(
+        self,
+        payload: OrganizationImportRequest,
+        *,
+        current_user: AuthenticatedUser,
+    ) -> OrganizationImportEnvelope:
+        AuthService.ensure_roles(current_user, ["admin"])
+        records = [record.model_dump(by_alias=True, mode="json") for record in payload.records]
+        summary = self._import_service.import_records(
+            records,
+            source_name=payload.source_name or self._build_source_name(current_user, suffix="bulk"),
+            source_path=self.BULK_IMPORT_SOURCE_PATH,
+            source_type="api",
+            dry_run=payload.dry_run,
+        )
+        return OrganizationImportEnvelope(
+            data=OrganizationImportSummaryData.model_validate(summary_to_dict(summary))
+        )
+
+    @staticmethod
+    def _build_source_name(current_user: AuthenticatedUser, *, suffix: str) -> str:
+        return f"admin_api_{suffix}_user_{current_user.id}"
 
 
 class CachedOrganizationAggregateService:
