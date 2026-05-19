@@ -1,0 +1,207 @@
+
+<div id="erd"></div>
+<style>
+#erd { padding: 1rem 0; }
+#erd svg { max-width: 100%; }
+</style>
+<script type="module">
+import mermaid from 'https://esm.sh/mermaid@11/dist/mermaid.esm.min.mjs';
+const dark = matchMedia('(prefers-color-scheme: dark)').matches;
+await document.fonts.ready;
+mermaid.initialize({
+  startOnLoad: false,
+  theme: 'base',
+  fontFamily: '"Anthropic Sans", sans-serif',
+  themeVariables: {
+    darkMode: dark,
+    fontSize: '12px',
+    fontFamily: '"Anthropic Sans", sans-serif',
+    lineColor: dark ? '#9c9a92' : '#73726c',
+    textColor: dark ? '#c2c0b6' : '#3d3d3a',
+    primaryColor: dark ? '#3C3489' : '#EEEDFE',
+    primaryTextColor: dark ? '#CECBF6' : '#26215C',
+    primaryBorderColor: dark ? '#534AB7' : '#AFA9EC',
+    secondaryColor: dark ? '#085041' : '#E1F5EE',
+    tertiaryColor: dark ? '#3d3d3a' : '#F1EFE8',
+  },
+});
+
+const diagram = `erDiagram
+  organizations {
+    bigserial id PK
+    text external_code
+    text trade_name
+    text registered_name
+    text tax_code
+    smallint founded_year
+    bigint operational_status_id FK
+    smallint closed_year
+    bigint organization_type_id FK
+    bigint primary_industry_sector_id FK
+    boolean has_positive_social_impact
+    bigint primary_product_type_id FK
+    bigint other_product_type_id FK
+    bigint impact_entity_type_id FK
+    smallint star_rating
+    boolean is_featured
+    text source_status
+  }
+
+  organization_contacts {
+    bigint organization_id PK
+    text website
+    text email
+    text phone
+  }
+
+  organization_locations {
+    bigint organization_id PK
+    bigint province_id FK
+    text ward_name
+    text full_address
+    float latitude
+    float longitude
+    geometry geom
+    text location_precision
+  }
+
+  organization_industry_sectors {
+    bigint organization_id PK
+    bigint industry_sector_id PK
+    smallint sort_order
+  }
+
+  organization_environmental_impacts {
+    bigint organization_id PK
+    bigint environmental_impact_area_id PK
+    smallint sort_order
+  }
+
+  organization_sdgs {
+    bigint organization_id PK
+    bigint sdg_id PK
+  }
+
+  organization_import_runs {
+    bigserial id PK
+    text source_name
+    text source_type
+    text status
+    int total_records
+    int inserted_count
+    int updated_count
+    int error_count
+  }
+
+  organization_import_errors {
+    bigserial id PK
+    bigint import_run_id FK
+    int record_index
+    text error_code
+    text error_message
+  }
+
+  organization_import_sources {
+    bigserial id PK
+    bigint organization_id FK
+    bigint import_run_id FK
+    text source_name
+  }
+
+  operational_statuses {
+    bigserial id PK
+    text code
+    text display_name
+  }
+
+  organization_types {
+    bigserial id PK
+    text code
+    text display_name
+  }
+
+  industry_sectors {
+    bigserial id PK
+    text code
+    text display_name
+  }
+
+  environmental_impact_areas {
+    bigserial id PK
+    text code
+    text display_name
+  }
+
+  product_types {
+    bigserial id PK
+    text code
+    text display_name
+  }
+
+  impact_entity_types {
+    bigserial id PK
+    text code
+    text display_name
+  }
+
+  provinces {
+    bigserial id PK
+    text code
+    text display_name
+    numeric centroid_latitude
+    numeric centroid_longitude
+  }
+
+  sdgs {
+    bigserial id PK
+    text code
+    text display_name
+  }
+
+  organizations ||--o{ organization_contacts : "has"
+  organizations ||--o{ organization_locations : "located at"
+  organizations ||--o{ organization_industry_sectors : "operates in"
+  organizations ||--o{ organization_environmental_impacts : "impacts"
+  organizations ||--o{ organization_sdgs : "aligns with"
+  organizations ||--o{ organization_import_sources : "sourced from"
+  organizations }o--|| operational_statuses : "status"
+  organizations }o--|| organization_types : "type"
+  organizations }o--|| industry_sectors : "primary sector"
+  organizations }o--|| product_types : "primary product"
+  organizations }o--o| product_types : "other product"
+  organizations }o--o| impact_entity_types : "entity type"
+  organization_locations }o--|| provinces : "in province"
+  organization_industry_sectors }o--|| industry_sectors : "sector"
+  organization_environmental_impacts }o--|| environmental_impact_areas : "area"
+  organization_sdgs }o--|| sdgs : "sdg"
+  organization_import_errors }o--|| organization_import_runs : "belongs to"
+  organization_import_sources }o--|| organization_import_runs : "from run"
+`;
+
+const { svg } = await mermaid.render('erd-svg', diagram);
+document.getElementById('erd').innerHTML = svg;
+
+document.querySelectorAll('#erd svg .node').forEach(node => {
+  const firstPath = node.querySelector('path[d]');
+  if (!firstPath) return;
+  const d = firstPath.getAttribute('d');
+  const nums = d.match(/-?[\d.]+/g)?.map(Number);
+  if (!nums || nums.length < 8) return;
+  const xs = [nums[0], nums[2], nums[4], nums[6]];
+  const ys = [nums[1], nums[3], nums[5], nums[7]];
+  const x = Math.min(...xs), y = Math.min(...ys);
+  const w = Math.max(...xs) - x, h = Math.max(...ys) - y;
+  const rect = document.createElementNS('http://www.w3.org/2000/svg', 'rect');
+  rect.setAttribute('x', x); rect.setAttribute('y', y);
+  rect.setAttribute('width', w); rect.setAttribute('height', h);
+  rect.setAttribute('rx', '8');
+  for (const a of ['fill','stroke','stroke-width','class','style']) {
+    if (firstPath.hasAttribute(a)) rect.setAttribute(a, firstPath.getAttribute(a));
+  }
+  firstPath.replaceWith(rect);
+});
+
+document.querySelectorAll('#erd svg .row-rect-odd path, #erd svg .row-rect-even path').forEach(p => {
+  p.setAttribute('stroke', 'none');
+});
+</script>
