@@ -84,8 +84,8 @@ export function MapPage() {
         </div>
       </section>
 
-      <section className="map-layout">
-        <Card className="map-sidebar">
+      <div className="map-viewport">
+        <aside className="map-filter-panel">
           <div className="stack-md">
             <div>
               <h3>Bộ lọc</h3>
@@ -171,95 +171,91 @@ export function MapPage() {
               ))}
             </div>
           </div>
-        </Card>
+        </aside>
 
-        <div className="map-main">
-          <Card className="map-surface">
-            <div className="map-shell">
-              <MapContainer center={mapCenter} zoom={6} scrollWheelZoom className="leaflet-map">
-                <TileLayer
-                  attribution='&copy; OpenStreetMap contributors'
-                  url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
-                />
-                {features.map((feature) => (
-                  <Marker
-                    key={feature.properties.id}
-                    position={[feature.geometry.coordinates[1], feature.geometry.coordinates[0]]}
-                    eventHandlers={{
-                      click: () => setSelectedEnterpriseId(feature.properties.id),
-                    }}
-                  >
-                    <Popup>
-                      <strong>{feature.properties.display_name}</strong>
-                      <br />
-                      {feature.properties.province?.display_name || 'Đang cập nhật địa bàn'}
-                    </Popup>
-                  </Marker>
-                ))}
-              </MapContainer>
+        <div className="map-center-panel">
+          <MapContainer center={mapCenter} zoom={6} scrollWheelZoom className="leaflet-map">
+            <TileLayer
+              attribution='&copy; OpenStreetMap contributors'
+              url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
+            />
+            {features.map((feature) => (
+              <Marker
+                key={feature.properties.id}
+                position={[feature.geometry.coordinates[1], feature.geometry.coordinates[0]]}
+                eventHandlers={{
+                  click: () => setSelectedEnterpriseId(feature.properties.id),
+                }}
+              >
+                <Popup>
+                  <strong>{feature.properties.display_name}</strong>
+                  <br />
+                  {feature.properties.province?.display_name || 'Đang cập nhật địa bàn'}
+                </Popup>
+              </Marker>
+            ))}
+          </MapContainer>
 
-              {!mapQuery.isLoading && !features.length ? (
-                <div className="map-overlay-note">
-                  <p className="eyebrow">Map empty by contract</p>
-                  <h3>Chưa có geometry hợp lệ để render marker.</h3>
-                  <p>
-                    Backend trả `matched_total` {formatNumber(mapQuery.data?.meta.matched_total || 0)} nhưng `mappable_total` bằng{' '}
-                    {formatNumber(mapQuery.data?.meta.mappable_total || 0)}.
-                  </p>
-                </div>
-              ) : null}
+          {!mapQuery.isLoading && !features.length ? (
+            <div className="map-overlay-note">
+              <p className="eyebrow">Map empty by contract</p>
+              <h3>Chưa có geometry hợp lệ để render marker.</h3>
+              <p>
+                Backend trả `matched_total` {formatNumber(mapQuery.data?.meta.matched_total || 0)} nhưng `mappable_total` bằng{' '}
+                {formatNumber(mapQuery.data?.meta.mappable_total || 0)}.
+              </p>
             </div>
+          ) : null}
+        </div>
+
+        <aside className="map-right-panel">
+          <Card>
+            <div className="section-header compact">
+              <div>
+                <p className="eyebrow">Quick profile</p>
+                <h2>Enterprise preview</h2>
+              </div>
+            </div>
+            {activeQuickId ? (
+              <QuickPanel
+                enterpriseId={activeQuickId}
+                selectedEnterpriseId={selectedEnterpriseId}
+                query={quickQuery}
+                onSelect={setSelectedEnterpriseId}
+                list={selectableList}
+              />
+            ) : (
+              <EmptyState title="Chưa có enterprise" description="Bộ lọc hiện không trả record nào." />
+            )}
           </Card>
 
-          <div className="map-secondary">
-            <Card>
-              <div className="section-header compact">
-                <div>
-                  <p className="eyebrow">Quick profile</p>
-                  <h2>Enterprise preview</h2>
-                </div>
+          <Card>
+            <div className="section-header compact">
+              <div>
+                <p className="eyebrow">Coverage</p>
+                <h2>Breakdown by province</h2>
               </div>
-              {activeQuickId ? (
-                <QuickPanel
-                  enterpriseId={activeQuickId}
-                  selectedEnterpriseId={selectedEnterpriseId}
-                  query={quickQuery}
-                  onSelect={setSelectedEnterpriseId}
-                  list={selectableList}
-                />
-              ) : (
-                <EmptyState title="Chưa có enterprise" description="Bộ lọc hiện không trả record nào." />
-              )}
-            </Card>
-
-            <Card>
-              <div className="section-header compact">
-                <div>
-                  <p className="eyebrow">Coverage</p>
-                  <h2>Breakdown by province</h2>
-                </div>
+            </div>
+            {provinceBreakdownQuery.isLoading ? (
+              <LoadingState />
+            ) : provinceBreakdownQuery.isError ? (
+              <ErrorState
+                description="Không tải được breakdown theo tỉnh."
+                onRetry={() => void provinceBreakdownQuery.refetch()}
+              />
+            ) : (
+              <div className="stack-sm">
+                {provinceBreakdownQuery.data?.data.map((bucket) => (
+                  <div key={bucket.province_code} className="metric-row">
+                    <span>{bucket.province_name}</span>
+                    <strong>{formatNumber(bucket.organization_count)}</strong>
+                  </div>
+                ))}
               </div>
-              {provinceBreakdownQuery.isLoading ? (
-                <LoadingState />
-              ) : provinceBreakdownQuery.isError ? (
-                <ErrorState
-                  description="Không tải được breakdown theo tỉnh."
-                  onRetry={() => void provinceBreakdownQuery.refetch()}
-                />
-              ) : (
-                <div className="stack-sm">
-                  {provinceBreakdownQuery.data?.data.map((bucket) => (
-                    <div key={bucket.province_code} className="metric-row">
-                      <span>{bucket.province_name}</span>
-                      <strong>{formatNumber(bucket.organization_count)}</strong>
-                    </div>
-                  ))}
-                </div>
-              )}
-            </Card>
-          </div>
-        </div>
-      </section>
+            )}
+          </Card>
+        </aside>
+      </div>
     </div>
   )
 }
