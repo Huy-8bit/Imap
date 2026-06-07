@@ -87,6 +87,7 @@ cp devops/.env.example devops/.env
 
 - PostgreSQL: `127.0.0.1:5432`
 - Redis: `127.0.0.1:6379`
+- Google auth: điền `GOOGLE_CLIENT_ID` trong `backend/.env` và `VITE_GOOGLE_CLIENT_ID` trong `fe/.env` bằng OAuth Web Client ID nếu muốn bật nút đăng nhập Google
 
 ### 2. Chạy full backend stack bằng Docker Compose
 
@@ -267,6 +268,9 @@ curl "http://127.0.0.1:8010/api/dashboard/impact-flows?limit=10"
 curl -X POST "http://127.0.0.1:8010/api/auth/login" \
   -H "Content-Type: application/json" \
   -d '{"email":"admin@example.com","password":"Password123"}'
+curl -X POST "http://127.0.0.1:8010/api/auth/google" \
+  -H "Content-Type: application/json" \
+  -d '{"credential":"<google_id_token>"}'
 curl "http://127.0.0.1:8010/api/iid/about"
 curl "http://127.0.0.1:8010/api/iid/team"
 curl "http://127.0.0.1:8010/api/iid/partners"

@@ -69,6 +69,7 @@ class AppConfig:
     jwt_secret: str   = _str("JWT_SECRET", "change-me")
     jwt_access_ttl_minutes: int = _int("JWT_ACCESS_TTL_MINUTES", 15)
     jwt_refresh_ttl_days: int = _int("JWT_REFRESH_TTL_DAYS", 30)
+    google_client_id: str = _str("GOOGLE_CLIENT_ID")
     file_storage_root: str = _str("FILE_STORAGE_ROOT", "storage")
 
     # ── Seed / import ─────────────────────────────────────────────────

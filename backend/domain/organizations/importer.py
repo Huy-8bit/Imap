@@ -120,6 +120,85 @@ class OrganizationImportService:
         result = results[0] if results else None
         return summary, result
 
+    def normalize_record(self, record: dict[str, Any]) -> OrganizationUpsertPayload:
+        lookups = self._repository.load_taxonomy_lookups(self.REQUIRED_TAXONOMIES)
+        return self._normalize_record(record, lookups)
+
+    def find_existing_organization_id(self, normalized: OrganizationUpsertPayload) -> int | None:
+        return self._repository.find_existing_organization_id(
+            tax_code=normalized.tax_code,
+            registered_name=normalized.registered_name,
+        )
+
+    def get_active_organization_link(self, organization_id: int) -> dict[str, Any] | None:
+        return self._repository.get_active_organization_link(organization_id)
+
+    def link_user_to_organization(
+        self,
+        *,
+        user_id: int,
+        organization_id: int,
+        linked_tax_code: str | None,
+    ) -> None:
+        self._repository.upsert_user_organization_link(
+            user_id=user_id,
+            organization_id=organization_id,
+            linked_tax_code=linked_tax_code,
+        )
+
+    def upsert_normalized_record(
+        self,
+        normalized: OrganizationUpsertPayload,
+        *,
+        source_name: str,
+        source_path: str,
+        source_type: str = "api",
+    ) -> tuple[ImportSummary, UpsertResult]:
+        import_run_id = self._repository.create_import_run(
+            source_name=source_name,
+            source_type=source_type,
+            source_path=source_path,
+            total_records=1,
+        )
+        try:
+            result = self._repository.upsert_organization(
+                normalized,
+                import_run_id=import_run_id,
+                source_name=source_name,
+                source_path=source_path,
+                source_record_id=normalized.external_code,
+            )
+            self._repository.finish_import_run(
+                import_run_id=import_run_id,
+                status="completed",
+                inserted_count=1 if result.operation == "inserted" else 0,
+                updated_count=1 if result.operation == "updated" else 0,
+                skipped_count=0,
+                error_count=0,
+            )
+            return ImportSummary(
+                source_name=source_name,
+                source_path=source_path,
+                total_records=1,
+                inserted_count=1 if result.operation == "inserted" else 0,
+                updated_count=1 if result.operation == "updated" else 0,
+                skipped_count=0,
+                error_count=0,
+                status="completed",
+                dry_run=False,
+                errors=[],
+            ), result
+        except Exception:
+            self._repository.finish_import_run(
+                import_run_id=import_run_id,
+                status="failed",
+                inserted_count=0,
+                updated_count=0,
+                skipped_count=1,
+                error_count=1,
+            )
+            raise
+
     def _import_records(
         self,
         records: list[dict[str, Any]],

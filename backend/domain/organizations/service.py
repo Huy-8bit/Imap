@@ -10,7 +10,7 @@ from pydantic import BaseModel, ValidationError
 from backend.domain.auth.schemas import AuthenticatedUser
 from backend.domain.auth.service import AuthService
 from backend.libs.database import RedisCommands
-from backend.libs.http.errors import AppError, NotFoundError
+from backend.libs.http.errors import AppError, ConflictError, NotFoundError
 
 from .catalog_repository import OrganizationCatalogRepository
 from .importer import OrganizationImportService, summary_to_dict
@@ -245,6 +245,7 @@ class EnterpriseCatalogService:
 class OrganizationAdminService:
     SINGLE_RECORD_SOURCE_PATH = "api:/api/enterprises"
     BULK_IMPORT_SOURCE_PATH = "api:/api/enterprises/import"
+    SELF_REGISTRATION_SOURCE_PATH = "api:/api/enterprises/self-registration"
 
     def __init__(
         self,
@@ -314,9 +315,64 @@ class OrganizationAdminService:
             data=OrganizationImportSummaryData.model_validate(summary_to_dict(summary))
         )
 
+    def self_register_enterprise(
+        self,
+        payload: OrganizationImportRecordInput,
+        *,
+        current_user: AuthenticatedUser,
+    ) -> OrganizationUpsertEnvelope:
+        AuthService.ensure_roles(current_user, ["enterprise"])
+        if current_user.organization_id is not None:
+            raise ConflictError("account already linked to an organization")
+
+        record = payload.model_dump(by_alias=True, mode="json")
+        try:
+            normalized = self._import_service.normalize_record(record)
+        except RecordValidationError as exc:
+            raise AppError(
+                "organization validation failed",
+                status_code=422,
+                detail={
+                    "field_name": exc.field_name,
+                    "error_code": exc.error_code,
+                    "error_message": exc.message,
+                },
+            ) from exc
+
+        existing_organization_id = self._import_service.find_existing_organization_id(normalized)
+        if existing_organization_id is not None:
+            active_link = self._import_service.get_active_organization_link(existing_organization_id)
+            if active_link is not None and int(active_link["user_id"]) != current_user.id:
+                raise ConflictError("organization already linked to another account")
+
+        normalized.source_status = "self_submitted"
+        summary, result = self._import_service.upsert_normalized_record(
+            normalized,
+            source_name=self._build_enterprise_source_name(current_user),
+            source_path=self.SELF_REGISTRATION_SOURCE_PATH,
+        )
+        self._import_service.link_user_to_organization(
+            user_id=current_user.id,
+            organization_id=result.organization_id,
+            linked_tax_code=normalized.tax_code,
+        )
+
+        detail_envelope = self._catalog_service.get_enterprise_detail(result.organization_id)
+        return OrganizationUpsertEnvelope(
+            data=OrganizationUpsertData(
+                operation=result.operation,
+                summary=OrganizationImportSummaryData.model_validate(summary_to_dict(summary)),
+                enterprise=detail_envelope.data,
+            )
+        )
+
     @staticmethod
     def _build_source_name(current_user: AuthenticatedUser, *, suffix: str) -> str:
         return f"admin_api_{suffix}_user_{current_user.id}"
+
+    @staticmethod
+    def _build_enterprise_source_name(current_user: AuthenticatedUser) -> str:
+        return f"enterprise_self_registration_user_{current_user.id}"
 
 
 class CachedOrganizationAggregateService:

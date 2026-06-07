@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import json
 from datetime import datetime
 from typing import Any
 
@@ -77,12 +78,23 @@ class AuthRepository:
     def get_user_auth_row_by_email(self, email: str) -> dict[str, Any] | None:
         return self._db.fetch_one(
             """
-            SELECT id, email, password_hash, status
+            SELECT id, email, password_hash, status, metadata
             FROM users
             WHERE lower(email) = lower(%s)
             LIMIT 1
             """,
             (email,),
+        )
+
+    def get_user_auth_row_by_google_sub(self, google_sub: str) -> dict[str, Any] | None:
+        return self._db.fetch_one(
+            """
+            SELECT id, email, password_hash, status, metadata
+            FROM users
+            WHERE metadata->'google'->>'sub' = %s
+            LIMIT 1
+            """,
+            (google_sub,),
         )
 
     def create_user(
@@ -92,6 +104,7 @@ class AuthRepository:
         password_hash: str,
         full_name: str | None,
         role_id: int,
+        metadata: dict[str, Any] | None = None,
     ) -> int:
         row = self._db.fetch_one(
             """
@@ -99,9 +112,10 @@ class AuthRepository:
                 email,
                 password_hash,
                 full_name,
-                role_id
+                role_id,
+                metadata
             )
-            VALUES (%(email)s, %(password_hash)s, %(full_name)s, %(role_id)s)
+            VALUES (%(email)s, %(password_hash)s, %(full_name)s, %(role_id)s, %(metadata)s::jsonb)
             RETURNING id
             """,
             {
@@ -109,11 +123,44 @@ class AuthRepository:
                 "password_hash": password_hash,
                 "full_name": full_name,
                 "role_id": role_id,
+                "metadata": json.dumps(metadata or {}, ensure_ascii=False),
             },
         )
         if row is None:
             raise RuntimeError("failed to create user")
         return int(row["id"])
+
+    def update_google_identity(
+        self,
+        *,
+        user_id: int,
+        google_metadata: dict[str, Any],
+        full_name: str | None,
+    ) -> None:
+        self._db.execute(
+            """
+            UPDATE users
+            SET
+                metadata = jsonb_set(
+                    COALESCE(metadata, '{}'::jsonb),
+                    '{google}',
+                    %(google_metadata)s::jsonb,
+                    TRUE
+                ),
+                full_name = CASE
+                    WHEN (full_name IS NULL OR btrim(full_name) = '') AND %(full_name)s IS NOT NULL
+                        THEN %(full_name)s
+                    ELSE full_name
+                END,
+                updated_at = NOW()
+            WHERE id = %(user_id)s
+            """,
+            {
+                "user_id": user_id,
+                "google_metadata": json.dumps(google_metadata, ensure_ascii=False),
+                "full_name": full_name,
+            },
+        )
 
     def touch_last_login(self, user_id: int) -> None:
         self._db.execute(

@@ -290,6 +290,60 @@ export interface AuthTokens {
   refreshExpiresAt: string
 }
 
+export interface OrganizationSelfRegistrationPayload {
+  id?: string | null
+  general: {
+    tradeName?: string | null
+    registeredName?: string | null
+    taxCode?: string | null
+    foundedYear?: number | string | null
+    operationalStatus?: string | null
+    location?: {
+      province?: string | null
+      ward?: string | null
+    }
+    contacts?: {
+      website?: string | null
+      email?: string | null
+      phone?: string | null
+    }
+  }
+  classification: {
+    organizationType?: string | null
+    primaryIndustrySector?: string | null
+    otherIndustrySectors?: string[]
+    hasPositiveSocialImpact?: boolean | string | number | null
+    environmentalImpactAreas?: string[]
+    primaryProductType?: string | null
+    otherProductType?: string | null
+  }
+}
+
+export interface OrganizationImportSummaryData {
+  source_name: string
+  source_path: string
+  total_records: number
+  inserted_count: number
+  updated_count: number
+  skipped_count: number
+  error_count: number
+  status: string
+  dry_run: boolean
+  errors: Array<{
+    record_index: number
+    external_code: string | null
+    field_name: string
+    error_code: string
+    error_message: string
+  }>
+}
+
+export interface OrganizationUpsertData {
+  operation: 'inserted' | 'updated'
+  summary: OrganizationImportSummaryData
+  enterprise: EnterpriseDetail
+}
+
 export interface AssessmentPillarItem {
   id: number
   code: string

@@ -762,6 +762,33 @@ p {
   width: min(560px, 100%);
 }
 
+.auth-divider {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  color: var(--muted);
+  font-size: 0.88rem;
+}
+
+.auth-divider::before,
+.auth-divider::after {
+  content: '';
+  height: 1px;
+  flex: 1;
+  background: var(--line);
+}
+
+.google-signin-frame {
+  display: flex;
+  justify-content: center;
+  min-height: 44px;
+}
+
+.google-signin-frame.is-disabled {
+  opacity: 0.64;
+  pointer-events: none;
+}
+
 .history-list {
   gap: 2px;
 }
@@ -785,6 +812,16 @@ p {
   align-items: center;
   gap: 10px;
   color: var(--ink-soft);
+}
+
+.checkbox-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  gap: 10px 16px;
+  padding: 12px;
+  border: 1px solid var(--line);
+  border-radius: var(--radius-sm);
+  background: rgba(244, 241, 232, 0.42);
 }
 
 .form-grid {

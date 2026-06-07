@@ -6,6 +6,7 @@ from backend.domain.auth import AuthRepository, AuthService
 from backend.domain.auth.schemas import (
     AuthMeEnvelope,
     AuthTokenEnvelope,
+    GoogleLoginRequest,
     LoginRequest,
     LogoutEnvelope,
     LogoutRequest,
@@ -40,6 +41,20 @@ async def login(
 ) -> AuthTokenEnvelope:
     service = AuthService(AuthRepository(db))
     return service.login(
+        payload,
+        user_agent=request.headers.get("user-agent"),
+        ip_address=request.client.host if request.client else None,
+    )
+
+
+@router.post("/google", response_model=AuthTokenEnvelope)
+async def login_with_google(
+    payload: GoogleLoginRequest,
+    request: Request,
+    db: PostgreSQLClient = Depends(get_postgresql_client),
+) -> AuthTokenEnvelope:
+    service = AuthService(AuthRepository(db))
+    return service.login_with_google(
         payload,
         user_agent=request.headers.get("user-agent"),
         ip_address=request.client.host if request.client else None,

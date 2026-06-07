@@ -80,6 +80,7 @@ services:
       JWT_SECRET: ${JWT_SECRET:-change-me}
       JWT_ACCESS_TTL_MINUTES: 15
       JWT_REFRESH_TTL_DAYS: 30
+      GOOGLE_CLIENT_ID: ${GOOGLE_CLIENT_ID:-}
       FILE_STORAGE_ROOT: /app/storage
       SEED_DATA_DIR: docs/iMapVN/Data/Sample-iMap-Json
       ORGANIZATION_DATASET_PATH: ${ORGANIZATION_DATASET_PATH:-docs/iMapVN/Data/Sample-iMap-Json/dataEng.json}

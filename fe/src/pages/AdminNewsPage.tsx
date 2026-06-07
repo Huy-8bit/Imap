@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useState } from 'react'
 import { useMutation, useQuery } from '@tanstack/react-query'
 
 import { Button } from '../components/ui/Button'
@@ -16,6 +16,19 @@ const initialNewsForm: NewsPayload = {
   status: 'published',
 }
 
+function toNewsForm(article: NewsArticle): NewsPayload {
+  return {
+    title: article.title,
+    slug: article.slug,
+    summary: article.summary,
+    body: article.body,
+    cover_image_url: article.cover_image_url,
+    tags: article.tags,
+    status: article.status,
+    published_at: article.published_at,
+  }
+}
+
 export function AdminNewsPage() {
   const [selected, setSelected] = useState<NewsArticle | null>(null)
   const [form, setForm] = useState<NewsPayload>(initialNewsForm)
@@ -23,21 +36,6 @@ export function AdminNewsPage() {
     queryKey: ['admin', 'news'],
     queryFn: () => getNews({ page: 1, page_size: 50 }),
   })
-
-  useEffect(() => {
-    if (selected) {
-      setForm({
-        title: selected.title,
-        slug: selected.slug,
-        summary: selected.summary,
-        body: selected.body,
-        cover_image_url: selected.cover_image_url,
-        tags: selected.tags,
-        status: selected.status,
-        published_at: selected.published_at,
-      })
-    }
-  }, [selected])
 
   const saveMutation = useMutation({
     mutationFn: () => (selected ? updateNews(selected.id, form) : createNews(form)),
@@ -71,7 +69,14 @@ export function AdminNewsPage() {
                 <strong>{article.title}</strong>
                 <p className="muted">{article.summary || 'No summary'}</p>
                 <div className="hero-actions">
-                  <Button variant="secondary" size="sm" onClick={() => setSelected(article)}>
+                  <Button
+                    variant="secondary"
+                    size="sm"
+                    onClick={() => {
+                      setSelected(article)
+                      setForm(toNewsForm(article))
+                    }}
+                  >
                     Edit
                   </Button>
                   <Button variant="danger" size="sm" onClick={() => deleteMutation.mutate(article.id)}>

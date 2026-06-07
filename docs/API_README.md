@@ -199,6 +199,27 @@ Ghi chú:
 - `dryRun=true` chỉ validate và trả summary/errors, không ghi DB
 - `dryRun=false` sẽ create/update organization thật và ghi audit import run
 
+#### `POST /api/enterprises/self-registration`
+
+Mục đích:
+
+- enterprise user tự gửi hồ sơ doanh nghiệp và link account hiện tại vào organization vừa tạo/match
+
+Auth:
+
+- `enterprise` hoặc `admin`
+
+Body chính:
+
+- cùng format 1 organization record của `POST /api/enterprises`
+- các trường bắt buộc theo validator hiện tại gồm tên doanh nghiệp, `operationalStatus`, `organizationType`, `primaryIndustrySector`, `primaryProductType`
+
+Ghi chú:
+
+- chỉ dùng cho account chưa link organization
+- nếu hồ sơ đã được link với account khác, API trả conflict
+- sau khi thành công, gọi lại `GET /api/auth/me` để lấy organization link mới
+
 #### `GET /api/enterprises/featured`
 
 Mục đích:
@@ -383,6 +404,26 @@ Body chính:
 Auth:
 
 - public
+
+#### `POST /api/auth/google`
+
+Mục đích:
+
+- login hoặc auto-register bằng Google ID token và trả access/refresh token nội bộ
+
+Body chính:
+
+- `credential`: Google ID token do Google Identity Services trả về
+
+Auth:
+
+- public
+
+Ghi chú:
+
+- backend xác minh `aud`, `iss`, `exp` và `email_verified` trước khi tạo session
+- user mới được tạo với role `enterprise`
+- nếu email đã tồn tại và Google email đã verified, backend sẽ link Google identity vào user hiện có
 
 #### `POST /api/auth/logout`
 
@@ -733,6 +774,7 @@ Auth:
 
 - `POST /api/auth/register`
 - `POST /api/auth/login`
+- `POST /api/auth/google`
 - `POST /api/auth/refresh`
 - `POST /api/assessment/submit`
 - `POST /api/certification/apply`
