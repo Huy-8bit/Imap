@@ -118,6 +118,91 @@ class OrganizationImportRepository:
             raise RuntimeError("Failed to create organization import run.")
         return row["id"]
 
+    def find_existing_organization_id(
+        self,
+        *,
+        tax_code: str | None,
+        registered_name: str | None,
+    ) -> int | None:
+        with self._db.cursor() as cursor:
+            return self._find_existing_organization_id(
+                cursor,
+                tax_code=tax_code,
+                registered_name=registered_name,
+            )
+
+    def get_active_organization_link(self, organization_id: int) -> dict[str, Any] | None:
+        return self._db.fetch_one(
+            """
+            SELECT id, user_id, organization_id, linked_tax_code, relationship_type, status
+            FROM organization_user_links
+            WHERE organization_id = %s
+              AND status = 'active'
+            ORDER BY id ASC
+            LIMIT 1
+            """,
+            (organization_id,),
+        )
+
+    def upsert_user_organization_link(
+        self,
+        *,
+        user_id: int,
+        organization_id: int,
+        linked_tax_code: str | None,
+        relationship_type: str = "owner",
+    ) -> None:
+        existing = self._db.fetch_one(
+            """
+            SELECT id
+            FROM organization_user_links
+            WHERE user_id = %s
+              AND status IN ('pending', 'active')
+            ORDER BY id ASC
+            LIMIT 1
+            """,
+            (user_id,),
+        )
+        if existing is None:
+            self._db.execute(
+                """
+                INSERT INTO organization_user_links (
+                    user_id,
+                    organization_id,
+                    linked_tax_code,
+                    relationship_type,
+                    status
+                )
+                VALUES (%(user_id)s, %(organization_id)s, %(linked_tax_code)s, %(relationship_type)s, 'active')
+                """,
+                {
+                    "user_id": user_id,
+                    "organization_id": organization_id,
+                    "linked_tax_code": linked_tax_code,
+                    "relationship_type": relationship_type,
+                },
+            )
+            return
+
+        self._db.execute(
+            """
+            UPDATE organization_user_links
+            SET
+                organization_id = %(organization_id)s,
+                linked_tax_code = %(linked_tax_code)s,
+                relationship_type = %(relationship_type)s,
+                status = 'active',
+                updated_at = NOW()
+            WHERE id = %(id)s
+            """,
+            {
+                "id": existing["id"],
+                "organization_id": organization_id,
+                "linked_tax_code": linked_tax_code,
+                "relationship_type": relationship_type,
+            },
+        )
+
     def record_import_error(
         self,
         *,

@@ -76,6 +76,19 @@ async def import_enterprises(
     return service.import_enterprises(payload, current_user=user)
 
 
+@router.post("/self-registration", response_model=OrganizationUpsertEnvelope)
+async def self_register_enterprise(
+    payload: OrganizationImportRecordInput,
+    user: AuthenticatedUser = Depends(require_roles("enterprise")),
+    db: PostgreSQLClient = Depends(get_postgresql_client),
+) -> OrganizationUpsertEnvelope:
+    service = OrganizationAdminService(
+        OrganizationImportRepository(db),
+        OrganizationCatalogRepository(db),
+    )
+    return service.self_register_enterprise(payload, current_user=user)
+
+
 @router.get("/featured", response_model=EnterpriseFeaturedEnvelope)
 async def list_featured_enterprises(
     params: EnterpriseFeaturedParams = Depends(enterprise_featured_params),

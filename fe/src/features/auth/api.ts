@@ -5,6 +5,9 @@ export const authApi = {
   login(payload: { email: string; password: string }) {
     return apiClient.post<AuthTokenData>('/api/auth/login', payload, { auth: false, retry: false })
   },
+  loginWithGoogle(payload: { credential: string }) {
+    return apiClient.post<AuthTokenData>('/api/auth/google', payload, { auth: false, retry: false })
+  },
   register(payload: {
     email: string
     password: string

@@ -1,14 +1,15 @@
-import { useState } from 'react'
+import { useCallback, useState } from 'react'
 import { useLocation, useNavigate } from 'react-router-dom'
 
 import { Button } from '../components/ui/Button'
 import { Card } from '../components/ui/Card'
 import { Field, Input } from '../components/ui/Field'
 import { ErrorState } from '../components/ui/States'
+import { GoogleSignInButton } from '../features/auth/GoogleSignInButton'
 import { getDefaultAuthRedirectPath, useAuth } from '../lib/auth/auth'
 
 export function RegisterPage() {
-  const { register } = useAuth()
+  const { loginWithGoogle, register } = useAuth()
   const navigate = useNavigate()
   const location = useLocation()
   const [form, setForm] = useState({
@@ -20,6 +21,29 @@ export function RegisterPage() {
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const destination = (location.state as { from?: string } | null)?.from
+
+  const finishRegistration = useCallback(
+    (user: Parameters<typeof getDefaultAuthRedirectPath>[0]) => {
+      navigate(destination || getDefaultAuthRedirectPath(user), { replace: true })
+    },
+    [destination, navigate],
+  )
+
+  const handleGoogleCredential = useCallback(
+    (credential: string) => {
+      setError(null)
+      setIsSubmitting(true)
+      loginWithGoogle(credential)
+        .then(finishRegistration)
+        .catch((submissionError: unknown) => {
+          setError(submissionError instanceof Error ? submissionError.message : 'Đăng ký bằng Google thất bại')
+        })
+        .finally(() => {
+          setIsSubmitting(false)
+        })
+    },
+    [finishRegistration, loginWithGoogle],
+  )
 
   return (
     <div className="auth-page">
@@ -38,7 +62,7 @@ export function RegisterPage() {
               setIsSubmitting(true)
               try {
                 const user = await register(form)
-                navigate(destination || getDefaultAuthRedirectPath(user), { replace: true })
+                finishRegistration(user)
               } catch (submissionError) {
                 setError(submissionError instanceof Error ? submissionError.message : 'Đăng ký thất bại')
               } finally {
@@ -63,6 +87,15 @@ export function RegisterPage() {
               {isSubmitting ? 'Đang tạo tài khoản...' : 'Register'}
             </Button>
           </form>
+          <div className="auth-divider">
+            <span>Hoặc</span>
+          </div>
+          <GoogleSignInButton
+            disabled={isSubmitting}
+            text="signup_with"
+            onCredential={handleGoogleCredential}
+            onError={setError}
+          />
         </div>
       </Card>
     </div>

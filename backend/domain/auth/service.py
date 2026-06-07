@@ -1,7 +1,11 @@
 from __future__ import annotations
 
+import secrets
+from dataclasses import dataclass
 from datetime import UTC, datetime, timedelta
-from typing import Iterable
+from typing import Any, Iterable
+
+import httpx
 
 from backend.libs.http.errors import ConflictError, ForbiddenError, UnauthorizedError
 from backend.service.config import config
@@ -20,6 +24,7 @@ from .schemas import (
     AuthTokenEnvelope,
     AuthUserProfile,
     AuthenticatedUser,
+    GoogleLoginRequest,
     LinkedOrganizationSummary,
     LoginRequest,
     LogoutEnvelope,
@@ -33,6 +38,30 @@ ACCESS_TOKEN_TYPE = "access"
 REFRESH_TOKEN_TYPE = "refresh"
 ADMIN_ROLE_CODE = "admin"
 ENTERPRISE_ROLE_CODE = "enterprise"
+GOOGLE_ISSUERS = {"accounts.google.com", "https://accounts.google.com"}
+GOOGLE_TOKENINFO_URL = "https://oauth2.googleapis.com/tokeninfo"
+GOOGLE_TOKENINFO_TIMEOUT_SECONDS = 5.0
+
+
+@dataclass(frozen=True, slots=True)
+class GoogleIdentity:
+    sub: str
+    email: str
+    email_verified: bool
+    full_name: str | None
+    picture: str | None
+    hosted_domain: str | None
+
+    def to_metadata(self) -> dict[str, Any]:
+        return {
+            "sub": self.sub,
+            "email": self.email,
+            "email_verified": self.email_verified,
+            "full_name": self.full_name,
+            "picture": self.picture,
+            "hosted_domain": self.hosted_domain,
+            "linked_at": datetime.now(UTC).isoformat(),
+        }
 
 
 class AuthService:
@@ -98,6 +127,20 @@ class AuthService:
             raise UnauthorizedError("invalid credentials")
 
         user_id = int(auth_row["id"])
+        self._repository.touch_last_login(user_id)
+        user = self._require_authenticated_user(user_id)
+        tokens = self._issue_session_tokens(user, user_agent=user_agent, ip_address=ip_address)
+        return AuthTokenEnvelope(data=tokens)
+
+    def login_with_google(
+        self,
+        payload: GoogleLoginRequest,
+        *,
+        user_agent: str | None = None,
+        ip_address: str | None = None,
+    ) -> AuthTokenEnvelope:
+        identity = self._verify_google_credential(payload.credential)
+        user_id = self._upsert_google_user(identity)
         self._repository.touch_last_login(user_id)
         user = self._require_authenticated_user(user_id)
         tokens = self._issue_session_tokens(user, user_agent=user_agent, ip_address=ip_address)
@@ -258,6 +301,169 @@ class AuthService:
             last_login_at=row.get("last_login_at"),
             created_at=row["created_at"],
         )
+
+    def _upsert_google_user(self, identity: GoogleIdentity) -> int:
+        existing_google_user = self._repository.get_user_auth_row_by_google_sub(identity.sub)
+        if existing_google_user is not None:
+            user_id = int(existing_google_user["id"])
+            self._ensure_active_auth_row(existing_google_user)
+            self._repository.update_google_identity(
+                user_id=user_id,
+                google_metadata=identity.to_metadata(),
+                full_name=identity.full_name,
+            )
+            return user_id
+
+        email_user = self._repository.get_user_auth_row_by_email(identity.email)
+        if email_user is not None:
+            user_id = int(email_user["id"])
+            self._ensure_active_auth_row(email_user)
+            linked_google_sub = self._extract_linked_google_sub(email_user.get("metadata"))
+            if linked_google_sub is not None and linked_google_sub != identity.sub:
+                raise ConflictError("email already linked to another google account")
+
+            self._repository.update_google_identity(
+                user_id=user_id,
+                google_metadata=identity.to_metadata(),
+                full_name=identity.full_name,
+            )
+            return user_id
+
+        role = self._repository.get_role_by_code(ENTERPRISE_ROLE_CODE)
+        if role is None:
+            raise RuntimeError("enterprise role taxonomy missing")
+
+        return self._repository.create_user(
+            email=identity.email,
+            password_hash=hash_password(secrets.token_urlsafe(32)),
+            full_name=identity.full_name,
+            role_id=int(role["id"]),
+            metadata={
+                "auth_provider": "google",
+                "google": identity.to_metadata(),
+            },
+        )
+
+    def _verify_google_credential(self, credential: str) -> GoogleIdentity:
+        if not config.google_client_id:
+            raise UnauthorizedError("google authentication is not configured")
+
+        try:
+            claims = self._verify_google_credential_with_google_auth(credential)
+        except ImportError:
+            claims = self._verify_google_credential_with_tokeninfo(credential)
+
+        return self._build_google_identity(claims)
+
+    def _verify_google_credential_with_google_auth(self, credential: str) -> dict[str, Any]:
+        try:
+            from google.auth.transport import requests as google_requests
+            from google.oauth2 import id_token
+        except ImportError:
+            raise
+
+        try:
+            claims = id_token.verify_oauth2_token(
+                credential,
+                google_requests.Request(),
+                config.google_client_id,
+            )
+        except Exception as exc:
+            raise UnauthorizedError("invalid google credential") from exc
+
+        return dict(claims)
+
+    def _verify_google_credential_with_tokeninfo(self, credential: str) -> dict[str, Any]:
+        try:
+            response = httpx.get(
+                GOOGLE_TOKENINFO_URL,
+                params={"id_token": credential},
+                timeout=GOOGLE_TOKENINFO_TIMEOUT_SECONDS,
+            )
+        except httpx.HTTPError as exc:
+            raise UnauthorizedError("invalid google credential") from exc
+
+        if response.status_code != 200:
+            raise UnauthorizedError("invalid google credential")
+
+        try:
+            payload = response.json()
+        except ValueError as exc:
+            raise UnauthorizedError("invalid google credential") from exc
+
+        if not isinstance(payload, dict):
+            raise UnauthorizedError("invalid google credential")
+
+        return payload
+
+    def _build_google_identity(self, claims: dict[str, Any]) -> GoogleIdentity:
+        aud = claims.get("aud")
+        if aud != config.google_client_id:
+            raise UnauthorizedError("invalid google audience")
+
+        issuer = claims.get("iss")
+        if issuer not in GOOGLE_ISSUERS:
+            raise UnauthorizedError("invalid google issuer")
+
+        expires_at = self._coerce_int_claim(claims.get("exp"))
+        if expires_at is None or expires_at <= int(datetime.now(UTC).timestamp()):
+            raise UnauthorizedError("google credential expired")
+
+        google_sub = clean_text(str(claims.get("sub") or ""))
+        if google_sub is None:
+            raise UnauthorizedError("invalid google subject")
+
+        email_verified = self._coerce_bool_claim(claims.get("email_verified"))
+        if not email_verified:
+            raise UnauthorizedError("google email is not verified")
+
+        email = self._normalize_email(str(claims.get("email") or ""), invalid_message="invalid google email")
+        full_name = clean_text(str(claims.get("name") or "")) if claims.get("name") else None
+        picture = clean_text(str(claims.get("picture") or "")) if claims.get("picture") else None
+        hosted_domain = clean_text(str(claims.get("hd") or "")) if claims.get("hd") else None
+
+        return GoogleIdentity(
+            sub=google_sub,
+            email=email,
+            email_verified=email_verified,
+            full_name=full_name,
+            picture=picture,
+            hosted_domain=hosted_domain,
+        )
+
+    @staticmethod
+    def _ensure_active_auth_row(auth_row: dict[str, Any]) -> None:
+        if auth_row["status"] != "active":
+            raise UnauthorizedError("user disabled")
+
+    @staticmethod
+    def _extract_linked_google_sub(metadata: Any) -> str | None:
+        if not isinstance(metadata, dict):
+            return None
+        google_metadata = metadata.get("google")
+        if not isinstance(google_metadata, dict):
+            return None
+        linked_sub = google_metadata.get("sub")
+        return str(linked_sub) if linked_sub else None
+
+    @staticmethod
+    def _coerce_bool_claim(value: Any) -> bool:
+        if isinstance(value, bool):
+            return value
+        if isinstance(value, str):
+            return value.strip().lower() == "true"
+        return False
+
+    @staticmethod
+    def _coerce_int_claim(value: Any) -> int | None:
+        if isinstance(value, int):
+            return value
+        if isinstance(value, str):
+            try:
+                return int(value)
+            except ValueError:
+                return None
+        return None
 
     def _normalize_email(self, raw: str, *, invalid_message: str = "invalid email") -> str:
         try:

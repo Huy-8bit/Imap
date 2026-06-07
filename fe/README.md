@@ -23,6 +23,11 @@ Mặc định app gọi backend tại:
 
 - `VITE_API_BASE_URL=http://127.0.0.1:8010`
 
+Để bật Google Sign-In, tạo OAuth Web Client ID trong Google Cloud Console rồi điền cùng một client ID vào:
+
+- `fe/.env`: `VITE_GOOGLE_CLIENT_ID=...`
+- `backend/.env` hoặc `devops/.env`: `GOOGLE_CLIENT_ID=...`
+
 Flow khuyến nghị cho local dev:
 
 1. Từ root repo, chạy backend bằng Docker Compose:

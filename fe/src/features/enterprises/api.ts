@@ -9,6 +9,8 @@ import type {
   EnterpriseMapMeta,
   EnterpriseQuickInfo,
   EnterpriseRadarData,
+  OrganizationSelfRegistrationPayload,
+  OrganizationUpsertData,
   PaginationMeta,
 } from '../../lib/api/types'
 
@@ -45,4 +47,8 @@ export function getMapEnterprises(params: EnterpriseFilterParams & { bbox?: stri
     '/api/map/enterprises',
     { query: params },
   )
+}
+
+export function selfRegisterEnterprise(payload: OrganizationSelfRegistrationPayload) {
+  return apiClient.post<OrganizationUpsertData>('/api/enterprises/self-registration', payload)
 }

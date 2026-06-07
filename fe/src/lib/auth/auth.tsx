@@ -12,6 +12,7 @@ interface AuthContextValue {
   tokens: AuthTokens | null
   status: 'loading' | 'authenticated' | 'guest'
   login: (payload: { email: string; password: string }) => Promise<AuthUserProfile>
+  loginWithGoogle: (credential: string) => Promise<AuthUserProfile>
   register: (payload: {
     email: string
     password: string
@@ -20,6 +21,7 @@ interface AuthContextValue {
   }) => Promise<AuthUserProfile>
   logout: () => Promise<void>
   refreshSession: () => Promise<string | null>
+  reloadProfile: () => Promise<AuthUserProfile>
   isAdmin: boolean
   isEnterprise: boolean
 }
@@ -191,6 +193,11 @@ export function AuthProvider({
     return establishSession(envelope)
   }
 
+  async function loginWithGoogle(credential: string) {
+    const envelope = await authApi.loginWithGoogle({ credential })
+    return establishSession(envelope)
+  }
+
   async function register(payload: {
     email: string
     password: string
@@ -227,15 +234,24 @@ export function AuthProvider({
     }
   }
 
+  async function reloadProfile() {
+    const me = await authApi.me()
+    setUser(me.data)
+    setStatus('authenticated')
+    return me.data
+  }
+
   const value = useMemo<AuthContextValue>(
     () => ({
       user,
       tokens,
       status,
       login,
+      loginWithGoogle,
       register,
       logout,
       refreshSession,
+      reloadProfile,
       isAdmin: user?.role === 'admin',
       isEnterprise: user?.role === 'enterprise' || user?.role === 'admin',
     }),
@@ -245,6 +261,7 @@ export function AuthProvider({
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>
 }
 
+// eslint-disable-next-line react-refresh/only-export-components
 export function useAuth() {
   const context = useContext(AuthContext)
   if (!context) {
@@ -253,6 +270,7 @@ export function useAuth() {
   return context
 }
 
+// eslint-disable-next-line react-refresh/only-export-components
 export function getDefaultAuthRedirectPath(user: Pick<AuthUserProfile, 'role'>) {
   return user.role === 'admin' ? '/admin' : '/assessment'
 }
