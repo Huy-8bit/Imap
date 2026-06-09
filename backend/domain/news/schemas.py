@@ -41,24 +41,21 @@ class NewsArticle(BaseModel):
 
 
 class NewsListEnvelope(BaseModel):
-    success: bool = True
-    message: str = "ok"
     data: list[NewsArticle]
     meta: PaginationMeta
+    error: str | None = None
 
 
 class NewsArticleEnvelope(BaseModel):
-    success: bool = True
-    message: str = "ok"
     data: NewsArticle
     meta: dict | None = None
+    error: str | None = None
 
 
 class NewsDeleteEnvelope(BaseModel):
-    success: bool = True
-    message: str = "ok"
     data: dict[str, bool]
     meta: dict | None = None
+    error: str | None = None
 
 
 def news_list_params(

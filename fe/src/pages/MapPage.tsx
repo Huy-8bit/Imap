@@ -269,7 +269,7 @@ function QuickPanel({
 }: {
   enterpriseId: number
   selectedEnterpriseId: number | null
-  query: ReturnType<typeof useQuery<{ success: boolean; message: string; data: import('../lib/api/types').EnterpriseQuickInfo; meta: unknown }, Error>>
+  query: ReturnType<typeof useQuery<import('../lib/api/types').ApiEnvelope<import('../lib/api/types').EnterpriseQuickInfo>, Error>>
   onSelect: (value: number) => void
   list: Array<Awaited<ReturnType<typeof getEnterprises>>['data'][number]>
 }) {

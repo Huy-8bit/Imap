@@ -58,24 +58,21 @@ class ReportDetail(ReportSummary):
 
 
 class ReportListEnvelope(BaseModel):
-    success: bool = True
-    message: str = "ok"
     data: list[ReportSummary]
     meta: PaginationMeta
+    error: str | None = None
 
 
 class ReportDetailEnvelope(BaseModel):
-    success: bool = True
-    message: str = "ok"
     data: ReportDetail
     meta: dict | None = None
+    error: str | None = None
 
 
 class ReportDownloadEnvelope(BaseModel):
-    success: bool = True
-    message: str = "ok"
     data: dict
     meta: dict | None = None
+    error: str | None = None
 
 
 class ReportAggregateParams(EnterpriseFilterParams):
@@ -83,31 +80,27 @@ class ReportAggregateParams(EnterpriseFilterParams):
 
 
 class ProvinceReportEnvelope(BaseModel):
-    success: bool = True
-    message: str = "ok"
     data: list[dict]
     meta: dict
+    error: str | None = None
 
 
 class SectorReportEnvelope(BaseModel):
-    success: bool = True
-    message: str = "ok"
     data: list[dict]
     meta: dict
+    error: str | None = None
 
 
 class DueDiligenceReportEnvelope(BaseModel):
-    success: bool = True
-    message: str = "ok"
     data: dict
     meta: dict
+    error: str | None = None
 
 
 class SroiReportEnvelope(BaseModel):
-    success: bool = True
-    message: str = "ok"
     data: dict
     meta: dict
+    error: str | None = None
 
 
 class CustomAnalysisAttachmentInput(BaseModel):
@@ -164,17 +157,15 @@ class CustomAnalysisRequestItem(BaseModel):
 
 
 class CustomAnalysisListEnvelope(BaseModel):
-    success: bool = True
-    message: str = "ok"
     data: list[CustomAnalysisRequestItem]
     meta: PaginationMeta
+    error: str | None = None
 
 
 class CustomAnalysisEnvelope(BaseModel):
-    success: bool = True
-    message: str = "ok"
     data: CustomAnalysisRequestItem
     meta: dict | None = None
+    error: str | None = None
 
 
 def report_list_params(

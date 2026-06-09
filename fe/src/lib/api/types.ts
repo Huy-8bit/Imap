@@ -1,8 +1,12 @@
-export interface ApiEnvelope<T, M = unknown> {
-  success: boolean
+export interface ApiResponseError {
+  code: string
   message: string
+}
+
+export interface ApiEnvelope<T, M = unknown> {
   data: T
   meta: M
+  error: ApiResponseError | null
 }
 
 export interface PaginationMeta {

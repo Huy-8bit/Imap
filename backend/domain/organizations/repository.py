@@ -376,7 +376,8 @@ class OrganizationImportRepository:
                 has_positive_social_impact,
                 primary_product_type_id,
                 other_product_type_id,
-                source_status
+                source_status,
+                slug
             )
             VALUES (
                 %(external_code)s,
@@ -391,13 +392,23 @@ class OrganizationImportRepository:
                 %(has_positive_social_impact)s,
                 %(primary_product_type_id)s,
                 %(other_product_type_id)s,
-                %(source_status)s
+                %(source_status)s,
+                gen_random_uuid()::text
             )
             RETURNING id
             """,
             self._organization_params(payload),
         )
-        return cursor.fetchone()["id"]
+        org_id = cursor.fetchone()["id"]
+        cursor.execute(
+            """
+            UPDATE organizations
+            SET slug = generate_slug(COALESCE(trade_name, registered_name, 'org')) || '-' || %(id)s
+            WHERE id = %(id)s
+            """,
+            {"id": org_id},
+        )
+        return org_id
 
     def _update_organization(self, cursor, organization_id: int, payload: OrganizationUpsertPayload) -> None:
         params = self._organization_params(payload)

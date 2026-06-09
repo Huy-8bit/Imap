@@ -41,10 +41,9 @@ class AssessmentPillarQuestionGroup(BaseModel):
 
 
 class AssessmentQuestionBankEnvelope(BaseModel):
-    success: bool = True
-    message: str = "ok"
     data: list[AssessmentPillarQuestionGroup]
     meta: dict[str, int]
+    error: str | None = None
 
 
 class AssessmentAnswerInput(BaseModel):
@@ -79,10 +78,9 @@ class AssessmentResultData(BaseModel):
 
 
 class AssessmentResultEnvelope(BaseModel):
-    success: bool = True
-    message: str = "ok"
     data: AssessmentResultData
     meta: dict | None = None
+    error: str | None = None
 
 
 class AssessmentSubmissionHistoryItem(BaseModel):
@@ -95,7 +93,6 @@ class AssessmentSubmissionHistoryItem(BaseModel):
 
 
 class AssessmentHistoryEnvelope(BaseModel):
-    success: bool = True
-    message: str = "ok"
     data: list[AssessmentSubmissionHistoryItem]
     meta: PaginationMeta
+    error: str | None = None

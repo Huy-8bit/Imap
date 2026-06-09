@@ -104,7 +104,7 @@ class EnterpriseMapApiTests(unittest.TestCase):
 
         self.assertEqual(response.status_code, 200)
         payload = response.json()
-        self.assertTrue(payload["success"])
+        self.assertIsNone(payload["error"])
         self.assertEqual(payload["data"]["type"], "FeatureCollection")
         self.assertEqual(payload["meta"]["matched_total"], 1)
         self.assertEqual(payload["meta"]["mappable_total"], 1)

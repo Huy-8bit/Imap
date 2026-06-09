@@ -17,23 +17,21 @@ from backend.domain.organizations.schemas import (
     EnterpriseListParams,
     EnterpriseQuickEnvelope,
     EnterpriseRadarEnvelope,
-    EnterpriseSearchParams,
     OrganizationImportEnvelope,
     OrganizationImportRecordInput,
     OrganizationImportRequest,
     OrganizationUpsertEnvelope,
     enterprise_featured_params,
     enterprise_list_params,
-    enterprise_search_params,
 )
 from backend.libs.database import PostgreSQLClient
 from backend.service.dependencies import get_postgresql_client, require_roles
 
-router = APIRouter(prefix="/enterprises", tags=["enterprises"])
+router = APIRouter(tags=["orgs"])
 
 
 @router.get("", response_model=EnterpriseListEnvelope)
-async def list_enterprises(
+async def list_orgs(
     params: EnterpriseListParams = Depends(enterprise_list_params),
     db: PostgreSQLClient = Depends(get_postgresql_client),
 ) -> EnterpriseListEnvelope:
@@ -42,7 +40,7 @@ async def list_enterprises(
 
 
 @router.post("", response_model=OrganizationUpsertEnvelope)
-async def upsert_enterprise(
+async def upsert_org(
     payload: OrganizationImportRecordInput,
     user: AuthenticatedUser = Depends(require_roles("admin")),
     db: PostgreSQLClient = Depends(get_postgresql_client),
@@ -54,17 +52,8 @@ async def upsert_enterprise(
     return service.upsert_enterprise(payload, current_user=user)
 
 
-@router.get("/search", response_model=EnterpriseListEnvelope)
-async def search_enterprises(
-    params: EnterpriseSearchParams = Depends(enterprise_search_params),
-    db: PostgreSQLClient = Depends(get_postgresql_client),
-) -> EnterpriseListEnvelope:
-    service = EnterpriseCatalogService(OrganizationCatalogRepository(db))
-    return service.search_enterprises(params)
-
-
 @router.post("/import", response_model=OrganizationImportEnvelope)
-async def import_enterprises(
+async def import_orgs(
     payload: OrganizationImportRequest,
     user: AuthenticatedUser = Depends(require_roles("admin")),
     db: PostgreSQLClient = Depends(get_postgresql_client),
@@ -77,7 +66,7 @@ async def import_enterprises(
 
 
 @router.post("/self-registration", response_model=OrganizationUpsertEnvelope)
-async def self_register_enterprise(
+async def self_register_org(
     payload: OrganizationImportRecordInput,
     user: AuthenticatedUser = Depends(require_roles("enterprise")),
     db: PostgreSQLClient = Depends(get_postgresql_client),
@@ -90,7 +79,7 @@ async def self_register_enterprise(
 
 
 @router.get("/featured", response_model=EnterpriseFeaturedEnvelope)
-async def list_featured_enterprises(
+async def list_featured_orgs(
     params: EnterpriseFeaturedParams = Depends(enterprise_featured_params),
     db: PostgreSQLClient = Depends(get_postgresql_client),
 ) -> EnterpriseFeaturedEnvelope:
@@ -99,7 +88,7 @@ async def list_featured_enterprises(
 
 
 @router.get("/{organization_id}/quick", response_model=EnterpriseQuickEnvelope)
-async def get_enterprise_quick(
+async def get_org_quick(
     organization_id: int = Path(..., ge=1),
     db: PostgreSQLClient = Depends(get_postgresql_client),
 ) -> EnterpriseQuickEnvelope:
@@ -108,7 +97,7 @@ async def get_enterprise_quick(
 
 
 @router.get("/{organization_id}/radar", response_model=EnterpriseRadarEnvelope)
-async def get_enterprise_radar(
+async def get_org_radar(
     organization_id: int = Path(..., ge=1),
     db: PostgreSQLClient = Depends(get_postgresql_client),
 ) -> EnterpriseRadarEnvelope:
@@ -117,7 +106,7 @@ async def get_enterprise_radar(
 
 
 @router.get("/{organization_id}", response_model=EnterpriseDetailEnvelope)
-async def get_enterprise_detail(
+async def get_org_detail(
     organization_id: int = Path(..., ge=1),
     db: PostgreSQLClient = Depends(get_postgresql_client),
 ) -> EnterpriseDetailEnvelope:
