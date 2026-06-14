@@ -76,11 +76,11 @@ class ApiClient {
       }
     }
 
-    if (!response.ok || payload?.success === false || payload === null) {
+    if (!response.ok || payload?.error != null || payload === null) {
       if (response.status === 401 || response.status === 403) {
         this.authAdapter?.clearSession()
       }
-      throw new ApiError(payload?.message || response.statusText || 'Request failed', response.status, payload)
+      throw new ApiError(payload?.error?.message || response.statusText || 'Request failed', response.status, payload)
     }
 
     return payload

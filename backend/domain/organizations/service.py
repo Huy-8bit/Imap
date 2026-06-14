@@ -52,7 +52,6 @@ from .schemas import (
     EnterpriseRadarData,
     EnterpriseRadarEnvelope,
     EnterpriseRadarPillarScore,
-    EnterpriseSearchParams,
     GeoJSONPointGeometry,
     OrganizationImportEnvelope,
     OrganizationImportRecordInput,
@@ -101,16 +100,33 @@ class EnterpriseCatalogService:
         self._repository = repository
 
     def list_enterprises(self, params: EnterpriseListParams) -> EnterpriseListEnvelope:
-        rows, total = self._repository.list_enterprises(params)
+        if params.q is not None:
+            normalized_query = clean_text(params.q)
+            if normalized_query is None or len(normalized_query) < self.MIN_SEARCH_QUERY_LENGTH:
+                raise AppError(
+                    "search query must contain at least 2 non-space characters",
+                    status_code=422,
+                )
+            search_params = params.model_copy(update={"q": normalized_query})
+            rows, total = self._repository.search_enterprises(search_params)
+            meta = PaginationMeta(
+                total=total,
+                page=search_params.page,
+                page_size=search_params.page_size,
+                total_pages=-(-total // search_params.page_size) if search_params.page_size else 0,
+                query=normalized_query,
+            )
+        else:
+            rows, total = self._repository.list_enterprises(params)
+            meta = PaginationMeta(
+                total=total,
+                page=params.page,
+                page_size=params.page_size,
+                total_pages=-(-total // params.page_size) if params.page_size else 0,
+                sort=params.sort.value,
+                order=params.order.value,
+            )
         items = [EnterpriseListItem.model_validate(row) for row in rows]
-        meta = PaginationMeta(
-            total=total,
-            page=params.page,
-            page_size=params.page_size,
-            total_pages=-(-total // params.page_size) if params.page_size else 0,
-            sort=params.sort.value,
-            order=params.order.value,
-        )
         return EnterpriseListEnvelope(data=items, meta=meta)
 
     def list_featured_enterprises(self, params: EnterpriseFeaturedParams) -> EnterpriseFeaturedEnvelope:
@@ -122,26 +138,6 @@ class EnterpriseCatalogService:
             data=items,
             meta={"total": len(items), "limit": params.limit},
         )
-
-    def search_enterprises(self, params: EnterpriseSearchParams) -> EnterpriseListEnvelope:
-        normalized_query = clean_text(params.q)
-        if normalized_query is None or len(normalized_query) < self.MIN_SEARCH_QUERY_LENGTH:
-            raise AppError(
-                "search query must contain at least 2 non-space characters",
-                status_code=422,
-            )
-
-        normalized_params = params.model_copy(update={"q": normalized_query})
-        rows, total = self._repository.search_enterprises(normalized_params)
-        items = [EnterpriseListItem.model_validate(row) for row in rows]
-        meta = PaginationMeta(
-            total=total,
-            page=normalized_params.page,
-            page_size=normalized_params.page_size,
-            total_pages=-(-total // normalized_params.page_size) if normalized_params.page_size else 0,
-            query=normalized_query,
-        )
-        return EnterpriseListEnvelope(data=items, meta=meta)
 
     def get_enterprise_detail(self, organization_id: int) -> EnterpriseDetailEnvelope:
         row = self._repository.get_enterprise_detail(organization_id)

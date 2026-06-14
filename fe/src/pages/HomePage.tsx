@@ -1,6 +1,9 @@
 import { useQuery } from '@tanstack/react-query'
 import { Link } from 'react-router-dom'
 
+import dnPic6 from '../assets/DN-Pic6.jpg'
+import dnPic7 from '../assets/DN-Pic7.jpg'
+import dnPic8 from '../assets/DN-Pic8.jpg'
 import { getNews, getIidAbout } from '../features/content/api'
 import { getDashboardByProvince, getStatsOverview } from '../features/dashboard/api'
 import { getFeaturedEnterprises } from '../features/enterprises/api'
@@ -93,6 +96,20 @@ export function HomePage() {
               <StatCard label="Sẵn sàng lên bản đồ" value={overviewQuery.data.data.mappable_organizations} accent="gold" />
             </div>
           ) : null}
+        </div>
+      </section>
+
+      <section>
+        <div className="section-header">
+          <div>
+            <p className="eyebrow">Doanh nghiệp tiêu biểu</p>
+            <h2>Hình ảnh từ cộng đồng impact economy.</h2>
+          </div>
+        </div>
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '1rem' }}>
+          <img src={dnPic6} alt="Doanh nghiệp 6" style={{ width: '100%', borderRadius: 8, objectFit: 'cover', aspectRatio: '4/3' }} />
+          <img src={dnPic7} alt="Doanh nghiệp 7" style={{ width: '100%', borderRadius: 8, objectFit: 'cover', aspectRatio: '4/3' }} />
+          <img src={dnPic8} alt="Doanh nghiệp 8" style={{ width: '100%', borderRadius: 8, objectFit: 'cover', aspectRatio: '4/3' }} />
         </div>
       </section>
 

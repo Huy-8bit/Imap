@@ -95,10 +95,9 @@ class CertificationCurrentRecord(BaseModel):
 
 
 class CertificationDirectoryEnvelope(BaseModel):
-    success: bool = True
-    message: str = "ok"
     data: list[CertificationDirectoryItem]
     meta: PaginationMeta
+    error: str | None = None
 
 
 class CertificationDetailData(BaseModel):
@@ -108,17 +107,15 @@ class CertificationDetailData(BaseModel):
 
 
 class CertificationDetailEnvelope(BaseModel):
-    success: bool = True
-    message: str = "ok"
     data: CertificationDetailData
     meta: dict | None = None
+    error: str | None = None
 
 
 class CertificationMutationEnvelope(BaseModel):
-    success: bool = True
-    message: str = "ok"
     data: CertificationDetailData
     meta: dict | None = None
+    error: str | None = None
 
 
 def certification_directory_params(

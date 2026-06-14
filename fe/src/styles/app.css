@@ -336,9 +336,6 @@ p {
 .detail-grid,
 .dashboard-grid,
 .form-grid,
-.map-layout,
-.map-main,
-.map-secondary,
 .tier-summary {
   display: grid;
   gap: 18px;
@@ -550,33 +547,47 @@ p {
   flex-wrap: wrap;
 }
 
-.map-layout {
-  grid-template-columns: 320px minmax(0, 1fr);
-}
-
-.map-main {
-  grid-template-columns: 1.3fr 0.9fr;
-}
-
-.map-secondary {
-  align-content: start;
-}
-
-.map-surface {
-  padding: 12px;
-}
-
-.map-shell {
-  position: relative;
-  border-radius: 20px;
+.map-viewport {
+  display: flex;
   overflow: hidden;
-  min-height: 620px;
+  height: 700px;
+  gap: 18px;
+}
+
+.map-filter-panel {
+  width: 280px;
+  flex-shrink: 0;
+  overflow-y: auto;
+  padding: 24px;
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  background: rgba(255, 253, 250, 0.94);
+  box-shadow: var(--shadow);
+}
+
+.map-center-panel {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  position: relative;
+  border-radius: var(--radius);
+  border: 1px solid var(--line);
+  box-shadow: var(--shadow);
+}
+
+.map-right-panel {
+  width: 320px;
+  flex-shrink: 0;
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 18px;
 }
 
 .leaflet-map,
 .leaflet-container {
   width: 100%;
-  height: 620px;
+  height: 100%;
 }
 
 .map-overlay-note {
@@ -886,8 +897,6 @@ p {
   }
 
   .hero-panel,
-  .map-layout,
-  .map-main,
   .detail-grid,
   .dashboard-grid {
     grid-template-columns: 1fr;
@@ -898,11 +907,22 @@ p {
     grid-template-columns: 1fr;
   }
 
-  .leaflet-map,
-  .leaflet-container,
-  .map-shell {
-    min-height: 420px;
+  .map-viewport {
+    flex-direction: column;
+    height: auto;
+    overflow: visible;
+  }
+
+  .map-filter-panel {
+    width: 100%;
+  }
+
+  .map-center-panel {
     height: 420px;
+  }
+
+  .map-right-panel {
+    width: 100%;
   }
 }
 

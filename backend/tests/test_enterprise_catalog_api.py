@@ -79,11 +79,11 @@ class EnterpriseCatalogApiTests(unittest.TestCase):
             db.close()
 
     def test_list_enterprises_returns_paginated_results(self) -> None:
-        response = self.client.get("/api/enterprises", params={"page": 1, "page_size": 10})
+        response = self.client.get("/api/v1/orgs", params={"page": 1, "page_size": 10})
 
         self.assertEqual(response.status_code, 200)
         payload = response.json()
-        self.assertTrue(payload["success"])
+        self.assertIsNone(payload["error"])
         self.assertIn("meta", payload)
         self.assertGreaterEqual(payload["meta"]["total"], 3)
         external_codes = {item["external_code"] for item in payload["data"] if item["external_code"]}
@@ -91,7 +91,7 @@ class EnterpriseCatalogApiTests(unittest.TestCase):
 
     def test_list_enterprises_applies_filters(self) -> None:
         response = self.client.get(
-            "/api/enterprises",
+            "/api/v1/orgs",
             params={
                 "province": "ho_chi_minh_city",
                 "operationalStatus": "active",
@@ -109,7 +109,7 @@ class EnterpriseCatalogApiTests(unittest.TestCase):
 
     def test_search_enterprises_returns_ranked_matches(self) -> None:
         response = self.client.get(
-            "/api/enterprises/search",
+            "/api/v1/orgs",
             params={"q": "Catalog Alpha", "page": 1, "page_size": 5},
         )
 
@@ -119,7 +119,7 @@ class EnterpriseCatalogApiTests(unittest.TestCase):
         self.assertEqual(payload["data"][0]["external_code"], "ORG-CAT-001")
 
     def test_search_enterprises_rejects_short_query(self) -> None:
-        response = self.client.get("/api/enterprises/search", params={"q": "a"})
+        response = self.client.get("/api/v1/orgs", params={"q": "a"})
 
         self.assertEqual(response.status_code, 422)
         payload = response.json()
@@ -128,11 +128,11 @@ class EnterpriseCatalogApiTests(unittest.TestCase):
 
     def test_get_enterprise_detail_returns_public_payload(self) -> None:
         enterprise_id = self.enterprise_ids["ORG-CAT-001"]
-        response = self.client.get(f"/api/enterprises/{enterprise_id}")
+        response = self.client.get(f"/api/v1/orgs/{enterprise_id}")
 
         self.assertEqual(response.status_code, 200)
         payload = response.json()
-        self.assertTrue(payload["success"])
+        self.assertIsNone(payload["error"])
         self.assertEqual(payload["data"]["external_code"], "ORG-CAT-001")
         self.assertEqual(payload["data"]["general"]["trade_name"], "Catalog Alpha Impact Co")
         self.assertEqual(payload["data"]["classification"]["organization_type"]["code"], "private_enterprise")
@@ -140,7 +140,7 @@ class EnterpriseCatalogApiTests(unittest.TestCase):
         self.assertEqual(payload["data"]["contacts"]["email"], "alpha@catalog.example.vn")
 
     def test_get_enterprise_detail_returns_404_for_missing_record(self) -> None:
-        response = self.client.get("/api/enterprises/999999999")
+        response = self.client.get("/api/v1/orgs/999999999")
 
         self.assertEqual(response.status_code, 404)
         payload = response.json()

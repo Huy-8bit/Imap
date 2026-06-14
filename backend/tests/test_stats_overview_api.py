@@ -126,7 +126,7 @@ class StatsOverviewApiTests(unittest.TestCase):
 
         self.assertEqual(response.status_code, 200)
         payload = response.json()
-        self.assertTrue(payload["success"])
+        self.assertIsNone(payload["error"])
         self.assertEqual(payload["data"]["total_organizations"], 3)
         self.assertEqual(payload["data"]["active_organizations"], 2)
         self.assertEqual(payload["data"]["provinces_count"], 3)
@@ -222,7 +222,7 @@ class StatsOverviewApiTests(unittest.TestCase):
 
         self.assertEqual(response.status_code, 200)
         payload = response.json()
-        self.assertTrue(payload["success"])
+        self.assertIsNone(payload["error"])
         self.assertEqual(payload["data"]["total_organizations"], 1)
         self.assertEqual(payload["data"]["active_organizations"], 0)
         self.assertEqual(payload["data"]["environmental_impact_organizations"], 1)
