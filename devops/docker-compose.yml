@@ -81,6 +81,7 @@ services:
       JWT_ACCESS_TTL_MINUTES: 15
       JWT_REFRESH_TTL_DAYS: 30
       GOOGLE_CLIENT_ID: ${GOOGLE_CLIENT_ID:-}
+      SETUP_ADMIN_SECRET: ${SETUP_ADMIN_SECRET:-}
       FILE_STORAGE_ROOT: /app/storage
       SEED_DATA_DIR: docs/iMapVN/Data/Sample-iMap-Json
       ORGANIZATION_DATASET_PATH: ${ORGANIZATION_DATASET_PATH:-docs/iMapVN/Data/Sample-iMap-Json/dataEng.json}
@@ -101,6 +102,22 @@ services:
       timeout: 5s
       retries: 10
       start_period: 45s
+    networks:
+      - backend_local
+
+  frontend:
+    build:
+      context: ../fe
+      dockerfile: Dockerfile
+      args:
+        VITE_API_BASE_URL: ""
+        VITE_GOOGLE_CLIENT_ID: ${GOOGLE_CLIENT_ID:-}
+    restart: unless-stopped
+    depends_on:
+      backend:
+        condition: service_healthy
+    ports:
+      - "${FRONTEND_HOST_PORT:-3000}:80"
     networks:
       - backend_local
 
