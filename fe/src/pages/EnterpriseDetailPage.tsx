@@ -1,4 +1,5 @@
-import { useQuery } from '@tanstack/react-query'
+import { useState } from 'react'
+import { useMutation, useQuery } from '@tanstack/react-query'
 import { Link, useParams } from 'react-router-dom'
 
 import { RadarScoreCard } from '../components/charts/RadarScoreCard'
@@ -7,12 +8,17 @@ import { Button } from '../components/ui/Button'
 import { Card } from '../components/ui/Card'
 import { EmptyState, ErrorState, LoadingState } from '../components/ui/States'
 import { getCertificationDetail } from '../features/certification/api'
-import { getEnterpriseDetail, getEnterpriseRadar } from '../features/enterprises/api'
+import { claimOrg, getEnterpriseDetail, getEnterpriseRadar } from '../features/enterprises/api'
+import { useAuth } from '../lib/auth/auth'
 import { formatDate, formatLabel } from '../lib/utils/format'
 
 export function EnterpriseDetailPage() {
   const params = useParams()
   const enterpriseId = Number(params.enterpriseId)
+  const { isEnterprise } = useAuth()
+  const [claimNote, setClaimNote] = useState('')
+  const [showClaimForm, setShowClaimForm] = useState(false)
+  const [claimSuccess, setClaimSuccess] = useState(false)
 
   const detailQuery = useQuery({
     queryKey: ['enterprise', 'detail', enterpriseId],
@@ -28,6 +34,14 @@ export function EnterpriseDetailPage() {
     queryKey: ['enterprise', 'certification', enterpriseId],
     queryFn: () => getCertificationDetail(enterpriseId),
     enabled: Number.isFinite(enterpriseId),
+  })
+
+  const claimMutation = useMutation({
+    mutationFn: () => claimOrg(enterpriseId, { note: claimNote || null }),
+    onSuccess: () => {
+      setClaimSuccess(true)
+      setShowClaimForm(false)
+    },
   })
 
   if (!Number.isFinite(enterpriseId)) {
@@ -51,14 +65,19 @@ export function EnterpriseDetailPage() {
         <div>
           <p className="eyebrow">Enterprise profile</p>
           <h1>{detail.display_name}</h1>
-          <p className="lead">
-            Hồ sơ chi tiết nối trực tiếp từ `GET /api/enterprises/{enterpriseId}`. Các badge chỉ hiển thị khi backend trả field thật.
-          </p>
           <div className="stack-inline">
-            {detail.general.operational_status ? <Badge tone="green">{detail.general.operational_status.display_name}</Badge> : null}
-            {detail.classification.organization_type ? <Badge tone="blue">{detail.classification.organization_type.display_name}</Badge> : null}
-            {detail.classification.impact_entity_type ? <Badge tone="gold">{detail.classification.impact_entity_type.display_name}</Badge> : null}
-            {detail.classification.star_rating ? <Badge tone="gold">{detail.classification.star_rating} sao</Badge> : null}
+            {detail.general.operational_status ? (
+              <Badge tone="green">{detail.general.operational_status.display_name}</Badge>
+            ) : null}
+            {detail.classification.organization_type ? (
+              <Badge tone="blue">{detail.classification.organization_type.display_name}</Badge>
+            ) : null}
+            {detail.classification.impact_entity_type ? (
+              <Badge tone="gold">{detail.classification.impact_entity_type.display_name}</Badge>
+            ) : null}
+            {detail.classification.star_rating ? (
+              <Badge tone="gold">{detail.classification.star_rating} sao</Badge>
+            ) : null}
           </div>
         </div>
         <div className="hero-actions">
@@ -68,8 +87,63 @@ export function EnterpriseDetailPage() {
           <Link to="/dashboard">
             <Button variant="ghost">Mở dashboard</Button>
           </Link>
+          {isEnterprise && !claimSuccess && (
+            <Button variant="primary" onClick={() => setShowClaimForm((v) => !v)}>
+              {showClaimForm ? 'Huỷ' : 'Claim doanh nghiệp này'}
+            </Button>
+          )}
         </div>
       </section>
+
+      {claimSuccess && (
+        <Card>
+          <div className="success-banner">
+            <strong>Yêu cầu claim đã được gửi.</strong>
+            <p className="muted">IID sẽ review và phê duyệt trong 24–48h. Trạng thái hiển thị trong hồ sơ tài khoản của bạn.</p>
+          </div>
+        </Card>
+      )}
+
+      {showClaimForm && isEnterprise && (
+        <Card>
+          <div className="section-header compact">
+            <div>
+              <p className="eyebrow">Claim workflow</p>
+              <h2>Đăng ký quyền sở hữu hồ sơ này</h2>
+              <p className="section-description">
+                Sau khi gửi, IID sẽ verify email và review trong 24–48h. Bạn sẽ nhận được thông báo kết quả.
+              </p>
+            </div>
+          </div>
+          <div className="stack-md">
+            <div>
+              <label className="field-label" htmlFor="claim-note">
+                Ghi chú (không bắt buộc)
+              </label>
+              <textarea
+                id="claim-note"
+                className="field-input"
+                rows={3}
+                placeholder="Mô tả ngắn gọn lý do bạn là đại diện hợp lệ của tổ chức này..."
+                value={claimNote}
+                onChange={(e) => setClaimNote(e.target.value)}
+              />
+            </div>
+            {claimMutation.isError && (
+              <p className="error-text">
+                {claimMutation.error instanceof Error ? claimMutation.error.message : 'Gửi claim thất bại.'}
+              </p>
+            )}
+            <Button
+              variant="primary"
+              onClick={() => claimMutation.mutate()}
+              disabled={claimMutation.isPending}
+            >
+              {claimMutation.isPending ? 'Đang gửi...' : 'Gửi yêu cầu claim'}
+            </Button>
+          </div>
+        </Card>
+      )}
 
       <div className="detail-grid">
         <Card>
@@ -123,7 +197,13 @@ export function EnterpriseDetailPage() {
             </div>
             <div>
               <dt>Tác động xã hội tích cực</dt>
-              <dd>{detail.classification.has_positive_social_impact === null ? 'Đang cập nhật' : detail.classification.has_positive_social_impact ? 'Có' : 'Không'}</dd>
+              <dd>
+                {detail.classification.has_positive_social_impact === null
+                  ? 'Đang cập nhật'
+                  : detail.classification.has_positive_social_impact
+                  ? 'Có'
+                  : 'Không'}
+              </dd>
             </div>
           </dl>
         </Card>
@@ -141,7 +221,13 @@ export function EnterpriseDetailPage() {
             </div>
             <div>
               <dt>Website</dt>
-              <dd>{detail.contacts.website ? <a href={detail.contacts.website}>{detail.contacts.website}</a> : 'Đang cập nhật'}</dd>
+              <dd>
+                {detail.contacts.website ? (
+                  <a href={detail.contacts.website}>{detail.contacts.website}</a>
+                ) : (
+                  'Đang cập nhật'
+                )}
+              </dd>
             </div>
             <div>
               <dt>Province</dt>
@@ -179,17 +265,25 @@ export function EnterpriseDetailPage() {
         {certificationQuery.isLoading ? (
           <LoadingState />
         ) : certificationQuery.isError ? (
-          <ErrorState description="Không tải được certification detail." onRetry={() => void certificationQuery.refetch()} />
+          <ErrorState
+            description="Không tải được certification detail."
+            onRetry={() => void certificationQuery.refetch()}
+          />
         ) : certification?.current ? (
           <div className="stack-sm">
             <div className="stack-inline">
-              {certification.current.certification_level ? <Badge tone="gold">{certification.current.certification_level.display_name}</Badge> : null}
+              {certification.current.certification_level ? (
+                <Badge tone="gold">{certification.current.certification_level.display_name}</Badge>
+              ) : null}
               <Badge tone="green">{certification.current.status}</Badge>
             </div>
             <p className="muted">{certification.current.public_note || 'Chưa có public note.'}</p>
           </div>
         ) : (
-          <EmptyState title="Chưa có chứng nhận hiện hành" description="Doanh nghiệp này hiện chưa có current certification record công khai." />
+          <EmptyState
+            title="Chưa có chứng nhận hiện hành"
+            description="Doanh nghiệp này hiện chưa có current certification record công khai."
+          />
         )}
       </Card>
     </div>

@@ -10,6 +10,9 @@ from backend.libs.http.errors import AppError
 from .repository import AssessmentRepository
 from .schemas import (
     AssessmentAnswerInput,
+    AssessmentDetailData,
+    AssessmentDetailEnvelope,
+    AssessmentDraftInput,
     AssessmentHistoryEnvelope,
     AssessmentPillarItem,
     AssessmentPillarQuestionGroup,
@@ -183,6 +186,38 @@ class AssessmentService:
     def get_results(self, enterprise_id: int, *, current_user: AuthenticatedUser) -> AssessmentResultEnvelope:
         AuthService.ensure_organization_access(current_user, enterprise_id)
         return AssessmentResultEnvelope(data=self._build_result_data(enterprise_id))
+
+    def get_assessment_detail(
+        self,
+        assessment_id: int,
+        *,
+        current_user: AuthenticatedUser,
+    ) -> AssessmentDetailEnvelope:
+        row = self._repository.get_assessment_by_id(assessment_id)
+        if row is None:
+            from backend.libs.http.errors import NotFoundError
+            raise NotFoundError("assessment not found")
+        AuthService.ensure_organization_access(current_user, int(row["org_id"]))
+        return AssessmentDetailEnvelope(data=AssessmentDetailData.model_validate(row))
+
+    def save_draft(
+        self,
+        assessment_id: int,
+        payload: AssessmentDraftInput,
+        *,
+        current_user: AuthenticatedUser,
+    ) -> AssessmentDetailEnvelope:
+        row = self._repository.get_assessment_by_id(assessment_id)
+        if row is None:
+            from backend.libs.http.errors import NotFoundError
+            raise NotFoundError("assessment not found")
+        AuthService.ensure_organization_access(current_user, int(row["org_id"]))
+        if row["status"] != "draft":
+            from backend.libs.http.errors import AppError
+            raise AppError("only draft assessments can be auto-saved", status_code=409)
+        self._repository.save_draft(assessment_id, payload.draft_responses)
+        updated = self._repository.get_assessment_by_id(assessment_id)
+        return AssessmentDetailEnvelope(data=AssessmentDetailData.model_validate(updated))
 
     def get_history(
         self,

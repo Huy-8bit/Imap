@@ -52,7 +52,7 @@ export function RegisterPage() {
           <div>
             <p className="eyebrow">Register</p>
             <h1>Tạo enterprise account</h1>
-            <p className="lead">Nếu `tax_code` khớp dataset hiện có, backend sẽ tự link account vào organization profile.</p>
+            <p className="lead">Tạo tài khoản doanh nghiệp để tham gia hệ sinh thái Impactonomy.</p>
           </div>
           <form
             className="stack-md"
@@ -79,7 +79,7 @@ export function RegisterPage() {
             <Field label="Password">
               <Input value={form.password} onChange={(event) => setForm((current) => ({ ...current, password: event.target.value }))} type="password" minLength={8} required />
             </Field>
-            <Field label="Tax code" hint="Optional nhưng nên nhập để backend link organization profile thật.">
+            <Field label="Mã số thuế" hint="Không bắt buộc. Nhập để hệ thống tự liên kết với hồ sơ doanh nghiệp nếu đã có.">
               <Input value={form.tax_code} onChange={(event) => setForm((current) => ({ ...current, tax_code: event.target.value }))} />
             </Field>
             {error ? <ErrorState description={error} /> : null}

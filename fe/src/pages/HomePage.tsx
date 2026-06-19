@@ -2,7 +2,7 @@ import { useQuery } from '@tanstack/react-query'
 import { Link } from 'react-router-dom'
 
 import dnPic6 from '../assets/DN-Pic6.jpg'
-import dnPic7 from '../assets/DN-Pic7.jpg'
+import dnPic7 from '../assets/DN-pic7.jpg'
 import dnPic8 from '../assets/DN-Pic8.jpg'
 import { getNews, getIidAbout } from '../features/content/api'
 import { getDashboardByProvince, getStatsOverview } from '../features/dashboard/api'
@@ -70,8 +70,7 @@ export function HomePage() {
             đến uy tín.
           </h1>
           <p className="lead">
-            Nền tảng frontend này bám theo backend đã có: enterprise catalog, dashboard aggregates, impactonomy
-            workflow, reports, news, và IID CMS.
+            Nền tảng số kết nối doanh nghiệp tác động xã hội với nhà đầu tư, tổ chức hỗ trợ và cộng đồng impact economy Việt Nam.
           </p>
           <div className="hero-actions">
             <Link to="/map">
@@ -117,10 +116,7 @@ export function HomePage() {
         <div className="section-header">
           <div>
             <p className="eyebrow">Impact at a glance</p>
-            <h2>Dữ liệu tổng quan đang phản ánh đúng những gì backend có.</h2>
-            <p className="section-description">
-              Không có featured fallback giả, không có map point giả, và không bịa pillar analytics khi score chưa hoàn chỉnh.
-            </p>
+            <h2>Dữ liệu tổng quan</h2>
           </div>
         </div>
         {provinceQuery.data ? (
@@ -139,7 +135,7 @@ export function HomePage() {
         <div className="section-header">
           <div>
             <p className="eyebrow">Featured enterprises</p>
-            <h2>Chỉ dùng curated data từ backend.</h2>
+            <h2>Doanh nghiệp tiêu biểu</h2>
           </div>
           <Link to="/map" className="inline-link">
             Mở directory
@@ -181,8 +177,8 @@ export function HomePage() {
           </div>
         ) : (
           <EmptyState
-            title="Chưa có featured enterprises"
-            description="Endpoint curated hiện trả rỗng, nên homepage không âm thầm fallback sang dữ liệu khác."
+            title="Chưa có doanh nghiệp tiêu biểu"
+            description="Danh sách đang được cập nhật."
           />
         )}
       </section>
@@ -191,7 +187,7 @@ export function HomePage() {
         <div className="section-header">
           <div>
             <p className="eyebrow">News & Trends</p>
-            <h2>Cập nhật nội dung công khai từ CMS.</h2>
+            <h2>News &amp; Xu hướng</h2>
           </div>
         </div>
         {newsQuery.isLoading ? (
@@ -216,7 +212,7 @@ export function HomePage() {
             ))}
           </div>
         ) : (
-          <EmptyState title="Chưa có bài viết mới" description="CMS news hiện chưa có thêm bài công khai ngoài seed hiện tại." />
+          <EmptyState title="Chưa có bài viết mới" description="Nội dung đang được cập nhật." />
         )}
       </section>
 
@@ -224,7 +220,7 @@ export function HomePage() {
         <div className="section-header">
           <div>
             <p className="eyebrow">Modules</p>
-            <h2>Bốn khối chính của sprint frontend.</h2>
+            <h2>Các công cụ chính</h2>
           </div>
         </div>
         <div className="feature-grid">
@@ -247,7 +243,7 @@ export function HomePage() {
           <p className="eyebrow">About IID</p>
           <h2>{aboutQuery.data?.data.title || 'Institute for Innovation and Development'}</h2>
           <p className="lead">
-            {aboutQuery.data?.data.summary || 'Frontend giữ landing, content, và navigation đồng bộ với IID CMS hiện tại.'}
+            {aboutQuery.data?.data.summary || 'Tổ chức phi lợi nhuận thúc đẩy hệ sinh thái kinh tế tác động xã hội tại Việt Nam.'}
           </p>
           <div className="hero-actions">
             <Link to="/about">

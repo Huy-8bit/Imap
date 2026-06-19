@@ -8,7 +8,9 @@ import { AdminAboutPage } from '../pages/AdminAboutPage'
 import { AdminCertificationsPage } from '../pages/AdminCertificationsPage'
 import { AdminCustomRequestsPage } from '../pages/AdminCustomRequestsPage'
 import { AdminNewsPage } from '../pages/AdminNewsPage'
+import { AdminQueuePage } from '../pages/AdminQueuePage'
 import { AdminReportsPage } from '../pages/AdminReportsPage'
+import { AdminScorePage } from '../pages/AdminScorePage'
 import { AssessmentPage } from '../pages/AssessmentPage'
 import { CertificationDirectoryPage } from '../pages/CertificationDirectoryPage'
 import { DashboardPage } from '../pages/DashboardPage'
@@ -68,7 +70,9 @@ export const router = createBrowserRouter([
           </RequireAdmin>
         ),
         children: [
-          { index: true, element: <Navigate to="/admin/news" replace /> },
+          { index: true, element: <Navigate to="/admin/queue" replace /> },
+          { path: 'queue', element: <AdminQueuePage /> },
+          { path: 'score', element: <AdminScorePage /> },
           { path: 'news', element: <AdminNewsPage /> },
           { path: 'reports', element: <AdminReportsPage /> },
           { path: 'certifications', element: <AdminCertificationsPage /> },

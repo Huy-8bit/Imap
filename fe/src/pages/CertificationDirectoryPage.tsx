@@ -34,8 +34,7 @@ export function CertificationDirectoryPage() {
       <section className="page-intro">
         <div>
           <p className="eyebrow">Certification directory</p>
-          <h1>Danh sách public record đã được directory-visible.</h1>
-          <p className="lead">Filters ở đây bám đúng query params hiện có của endpoint `/api/certification/directory`.</p>
+          <h1>Danh sách chứng nhận công khai</h1>
         </div>
       </section>
 

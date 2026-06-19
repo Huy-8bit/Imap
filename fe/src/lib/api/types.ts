@@ -667,3 +667,176 @@ export interface CustomAnalysisUpdatePayload {
   quoteCurrency?: string | null
   note?: string | null
 }
+
+// ── Map Pins (lean GeoJSON — /api/v1/map/pins) ─────────────────────────────
+
+export interface MapPinProperties {
+  id: number
+  status: 'unregistered' | 'registered' | 'certified'
+  primary_ai_tag: string | null
+}
+
+export interface MapPinFeature {
+  type: 'Feature'
+  geometry: { type: 'Point'; coordinates: [number, number] }
+  properties: MapPinProperties
+}
+
+export interface MapPinMeta {
+  total: number
+}
+
+// ── Org Full Profile (/api/v1/orgs/{id}/full) ──────────────────────────────
+
+export interface OrgFullAssessmentSnapshot {
+  submission_id: number | null
+  has_data: boolean
+  overall_score: number | null
+  scoring_version: string | null
+  scored_at: string | null
+  pillars: Array<{ pillar_code: string; pillar_name: string; score: number | null }>
+}
+
+export interface OrgFullProfile {
+  id: number
+  slug: string
+  status: string
+  display_name: string
+  trade_name: string | null
+  registered_name: string | null
+  founded_year: number | null
+  tax_code: string | null
+  ai_tags: string[]
+  sdg_numbers: number[]
+  ai_composite_score: number | null
+  has_positive_social_impact: boolean | null
+  star_rating: number | null
+  certified_at: string | null
+  expires_at: string | null
+  province: TaxonomySummary | null
+  ward_name: string | null
+  full_address: string | null
+  latitude: number | null
+  longitude: number | null
+  organization_type: TaxonomySummary | null
+  primary_industry_sector: TaxonomySummary | null
+  environmental_impact_areas: TaxonomySummary[]
+  website: string | null
+  assessment: OrgFullAssessmentSnapshot | null
+}
+
+// ── Org Claim (/api/v1/orgs/{id}/claim) ───────────────────────────────────
+
+export interface OrgClaimInput {
+  note?: string | null
+}
+
+export interface OrgClaimData {
+  id: number
+  org_id: number
+  user_id: number
+  status: string
+  submitted_at: string
+  verified_at: string | null
+  reviewed_at: string | null
+  reviewer_note: string | null
+}
+
+// ── Insights Summary (/api/v1/insights/summary) ───────────────────────────
+
+export interface InsightsSummaryData {
+  total_organizations: number
+  unregistered_count: number
+  registered_count: number
+  certified_count: number
+  provinces_count: number
+  social_impact_organizations: number
+  environmental_impact_organizations: number
+  mappable_organizations: number
+}
+
+export interface InsightsMeta {
+  cache_ttl_seconds: number
+}
+
+// ── Assessment v2 (/api/v1/assessments/{id}) ──────────────────────────────
+
+export interface AssessmentV2Detail {
+  id: number
+  org_id: number
+  module: string
+  version: string
+  year: number
+  status: string
+  responses: Record<string, unknown>
+  draft_responses: Record<string, unknown>
+  domain_scores: Record<string, number>
+  raw_score: number | null
+  final_score: number | null
+  maturity_level: number | null
+  review_notes: string | null
+  submitted_at: string | null
+  approved_at: string | null
+  created_at: string
+  updated_at: string
+}
+
+export interface AssessmentDraftInput {
+  draft_responses: Record<string, unknown>
+}
+
+// ── Admin Queue (/api/v1/admin/queue) ────────────────────────────────────
+
+export interface AdminQueueClaimItem {
+  id: number
+  org_id: number
+  user_id: number
+  status: string
+  submitted_at: string
+}
+
+export interface AdminQueueCertItem {
+  id: number
+  org_id: number
+  status: string
+  submitted_at: string
+}
+
+export interface AdminQueueData {
+  pending_claims: AdminQueueClaimItem[]
+  pending_certifications: AdminQueueCertItem[]
+  total_pending: number
+}
+
+// ── Admin Score Override (/api/v1/admin/orgs/{id}/score) ─────────────────
+
+export interface ScoreOverrideInput {
+  score: number
+  reason: string
+}
+
+export interface ScoreOverrideData {
+  org_id: number
+  old_score: number | null
+  new_score: number
+  audit_id: number
+}
+
+// ── Admin Cert Issue (/api/v1/admin/certifications/{id}) ─────────────────
+
+export interface CertIssueInput {
+  star_rating: number
+  certified_at?: string | null
+  expires_at?: string | null
+  notes?: string | null
+}
+
+export interface CertIssueData {
+  org_id: number
+  star_rating: number
+  status: string
+  certified_at: string | null
+  expires_at: string | null
+  requires_second_approval: boolean
+  audit_id: number | null
+}

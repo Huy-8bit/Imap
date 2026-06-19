@@ -10,7 +10,7 @@ export function NotFoundPage() {
         <div className="stack-md">
           <p className="eyebrow">404</p>
           <h1>Trang không tồn tại</h1>
-          <p className="lead">Route này hiện chưa có trong sitemap FE của sprint hoặc đường dẫn đã sai.</p>
+          <p className="lead">Trang bạn tìm không tồn tại hoặc đường dẫn không đúng.</p>
           <Link to="/">
             <Button>Về homepage</Button>
           </Link>

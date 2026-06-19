@@ -52,7 +52,7 @@ export function ImpactonomyPage() {
           <p className="eyebrow">Impactonomy</p>
           <h1>Basic → Verified → Gold</h1>
           <p className="lead">
-            Trang này lấy tinh thần từ docs và prototype, nhưng flow chỉ dùng các endpoint certification/assessment/auth hiện có.
+            Hệ thống chứng nhận ba cấp độ giúp doanh nghiệp xây dựng uy tín và kết nối với nhà đầu tư tác động.
           </p>
           <div className="hero-actions">
             <Link to="/impactonomy/directory">
@@ -74,7 +74,7 @@ export function ImpactonomyPage() {
         <Card>
           <h2>Methodology snapshot</h2>
           <div className="stack-sm">
-            <p className="muted">Impactonomy Mark được mô tả trong docs như một bộ lọc chuyên môn để giảm social washing và điều hướng doanh nghiệp vào pipeline IID.</p>
+            <p className="muted">Impactonomy Mark là bộ lọc chuyên môn giúp giảm social washing và điều hướng doanh nghiệp vào hệ sinh thái IID.</p>
             <div className="timeline-list">
               <div className="timeline-item">
                 <strong>1. Onboarding</strong>
@@ -82,7 +82,7 @@ export function ImpactonomyPage() {
               </div>
               <div className="timeline-item">
                 <strong>2. Assessment</strong>
-                <p>Hiện backend mới có generic pillar placeholder; FE hiển thị đúng trạng thái này.</p>
+                <p>Hoàn thiện bộ câu hỏi đánh giá theo tiêu chí IID.</p>
               </div>
               <div className="timeline-item">
                 <strong>3. Certification</strong>
@@ -97,10 +97,10 @@ export function ImpactonomyPage() {
         </Card>
 
         <Card>
-          <h2>Assessment reality check</h2>
+          <h2>Assessment</h2>
           <EmptyState
-            title="Question bank chưa có câu hỏi thực"
-            description="`GET /api/assessment/questions` hiện chỉ trả 5 pillar placeholder với danh sách questions rỗng. FE sẽ không bịa form SIM chính thức."
+            title="Bộ câu hỏi đang được cập nhật"
+            description="Vui lòng truy cập trang Assessment để theo dõi tiến trình."
           />
         </Card>
       </div>
@@ -194,7 +194,7 @@ export function ImpactonomyPage() {
             ))}
           </div>
         ) : (
-          <EmptyState title="Directory hiện chưa có nhiều record" description="Dataset local hiện mới seed một certification record công khai." />
+          <EmptyState title="Chưa có chứng nhận công khai" description="Danh sách đang được cập nhật." />
         )}
       </Card>
     </div>

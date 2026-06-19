@@ -12,8 +12,11 @@ from backend.domain.auth.schemas import (
     LogoutRequest,
     RefreshRequest,
     RegisterRequest,
+    SetupAdminEnvelope,
+    SetupAdminRequest,
 )
 from backend.libs.database import PostgreSQLClient
+from backend.service.config import config
 from backend.service.dependencies import get_current_user, get_postgresql_client
 
 router = APIRouter(prefix="/auth", tags=["auth"])
@@ -82,6 +85,18 @@ async def refresh(
         payload,
         user_agent=request.headers.get("user-agent"),
         ip_address=request.client.host if request.client else None,
+    )
+
+
+@router.post("/setup-admin", response_model=SetupAdminEnvelope)
+async def setup_admin(
+    payload: SetupAdminRequest,
+    db: PostgreSQLClient = Depends(get_postgresql_client),
+) -> SetupAdminEnvelope:
+    """Tạo tài khoản admin đầu tiên. Chỉ hoạt động khi chưa có admin nào và SETUP_ADMIN_SECRET được set."""
+    return AuthService(AuthRepository(db)).setup_admin(
+        payload,
+        expected_secret=config.setup_admin_secret,
     )
 
 

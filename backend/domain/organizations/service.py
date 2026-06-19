@@ -41,12 +41,21 @@ from .schemas import (
     EnterpriseListEnvelope,
     EnterpriseListItem,
     EnterpriseListParams,
+    InsightsSummaryData,
+    InsightsSummaryEnvelope,
+    OrgFullAssessmentSnapshot,
+    OrgFullEnvelope,
+    OrgFullProfile,
     EnterpriseMapEnvelope,
     EnterpriseMapFeature,
     EnterpriseMapFeatureCollection,
     EnterpriseMapFeatureProperties,
     EnterpriseMapMeta,
     EnterpriseMapParams,
+    MapPinEnvelope,
+    MapPinFeature,
+    MapPinFeatureCollection,
+    MapPinProperties,
     EnterpriseQuickEnvelope,
     EnterpriseQuickInfo,
     EnterpriseRadarData,
@@ -207,6 +216,73 @@ class EnterpriseCatalogService:
                 returned_total=len(features),
                 bbox=params.bbox,
             ),
+        )
+
+    def get_org_full(self, organization_id: int) -> OrgFullEnvelope:
+        row = self._repository.get_org_full(organization_id)
+        if row is None:
+            raise NotFoundError("enterprise not found")
+
+        assessment: OrgFullAssessmentSnapshot | None = None
+        if row.get("submission_id") is not None:
+            pillars_raw = row.get("pillars_json") or []
+            assessment = OrgFullAssessmentSnapshot(
+                submission_id=int(row["submission_id"]),
+                has_data=True,
+                overall_score=float(row["assessment_overall_score"]) if row.get("assessment_overall_score") is not None else None,
+                scoring_version=row.get("scoring_version"),
+                scored_at=row.get("assessment_scored_at"),
+                pillars=pillars_raw if isinstance(pillars_raw, list) else [],
+            )
+        else:
+            assessment = OrgFullAssessmentSnapshot(has_data=False)
+
+        return OrgFullEnvelope(
+            data=OrgFullProfile(
+                id=row["id"],
+                slug=row["slug"],
+                status=row["status"],
+                display_name=row["display_name"],
+                trade_name=row.get("trade_name"),
+                registered_name=row.get("registered_name"),
+                founded_year=row.get("founded_year"),
+                tax_code=row.get("tax_code"),
+                ai_tags=row.get("ai_tags") or [],
+                sdg_numbers=row.get("sdg_numbers") or [],
+                ai_composite_score=float(row["ai_composite_score"]) if row.get("ai_composite_score") is not None else None,
+                has_positive_social_impact=row.get("has_positive_social_impact"),
+                star_rating=row.get("star_rating"),
+                certified_at=row.get("certified_at"),
+                expires_at=row.get("expires_at"),
+                province=row.get("province"),
+                ward_name=row.get("ward_name"),
+                full_address=row.get("full_address"),
+                latitude=row.get("latitude"),
+                longitude=row.get("longitude"),
+                organization_type=row.get("organization_type"),
+                primary_industry_sector=row.get("primary_industry_sector"),
+                environmental_impact_areas=row.get("environmental_impact_areas") or [],
+                website=row.get("website"),
+                assessment=assessment,
+            )
+        )
+
+    def get_map_pins(self) -> MapPinEnvelope:
+        rows = self._repository.get_map_pins()
+        features = [
+            MapPinFeature(
+                geometry=GeoJSONPointGeometry.model_validate(row["geometry"]),
+                properties=MapPinProperties(
+                    id=row["id"],
+                    status=row["status"],
+                    primary_ai_tag=row.get("primary_ai_tag"),
+                ),
+            )
+            for row in rows
+        ]
+        return MapPinEnvelope(
+            data=MapPinFeatureCollection(features=features),
+            meta={"total": len(features)},
         )
 
     def _build_radar_data(self, organization_id: int) -> EnterpriseRadarData:
@@ -432,6 +508,25 @@ class CachedOrganizationAggregateService:
             )
         except Exception as exc:
             logger.warning("%s cache write failed: %s", self.CACHE_LOG_LABEL, exc)
+
+
+class InsightsSummaryService(CachedOrganizationAggregateService):
+    CACHE_KEY_PREFIX = "insights:summary:v1"
+    CACHE_LOG_LABEL = "insights summary"
+
+    def get_summary(self, params: StatsOverviewParams) -> InsightsSummaryEnvelope:
+        cache_key = self._build_cache_key_from_payload(self.canonicalize_filter_payload(params))
+        cached_data = self._load_from_cache(cache_key, model_cls=InsightsSummaryData)
+        if cached_data is None:
+            cached_data = InsightsSummaryData.model_validate(
+                self._repository.get_insights_summary(params)
+            )
+            self._store_in_cache(cache_key, cached_data)
+
+        return InsightsSummaryEnvelope(
+            data=cached_data,
+            meta=StatsOverviewMeta(cache_ttl_seconds=self._cache_ttl_seconds),
+        )
 
 
 class StatsOverviewService(CachedOrganizationAggregateService):

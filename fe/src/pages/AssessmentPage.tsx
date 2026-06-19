@@ -94,9 +94,6 @@ export function AssessmentPage() {
         <div>
           <p className="eyebrow">Self-assessment</p>
           <h1>Assessment flow cho enterprise account</h1>
-          <p className="lead">
-            Page này dùng đúng protected endpoints hiện có. Nếu question bank chưa có câu hỏi thật, FE sẽ giữ trạng thái “đang cập nhật”.
-          </p>
         </div>
       </section>
 
@@ -113,8 +110,8 @@ export function AssessmentPage() {
             <ErrorState description="Không tải được assessment question bank." onRetry={() => void questionsQuery.refetch()} />
           ) : !totalQuestions ? (
             <EmptyState
-              title="Question bank chưa có câu hỏi"
-              description="Backend hiện mới có placeholder 5 pillars nhưng chưa có questions/options thật."
+              title="Bộ câu hỏi đang được cập nhật"
+              description="Vui lòng quay lại sau."
             />
           ) : (
             <form

@@ -287,6 +287,29 @@ class EnterpriseMapEnvelope(BaseModel):
     error: str | None = None
 
 
+class MapPinProperties(BaseModel):
+    id: int
+    status: str
+    primary_ai_tag: str | None
+
+
+class MapPinFeature(BaseModel):
+    type: Literal["Feature"] = "Feature"
+    geometry: GeoJSONPointGeometry
+    properties: MapPinProperties
+
+
+class MapPinFeatureCollection(BaseModel):
+    type: Literal["FeatureCollection"] = "FeatureCollection"
+    features: list[MapPinFeature] = Field(default_factory=list)
+
+
+class MapPinEnvelope(BaseModel):
+    data: MapPinFeatureCollection
+    meta: dict
+    error: str | None = None
+
+
 class StatsOverviewData(BaseModel):
     total_organizations: int
     active_organizations: int
@@ -302,6 +325,162 @@ class StatsOverviewMeta(BaseModel):
 
 class StatsOverviewEnvelope(BaseModel):
     data: StatsOverviewData
+    meta: StatsOverviewMeta
+    error: str | None = None
+
+
+class OrgClaimInput(BaseModel):
+    note: str | None = None
+
+
+class OrgClaimData(BaseModel):
+    id: int
+    org_id: int
+    user_id: int
+    status: str
+    submitted_at: datetime
+    verified_at: datetime | None = None
+    reviewed_at: datetime | None = None
+    reviewer_note: str | None = None
+
+
+class OrgClaimEnvelope(BaseModel):
+    data: OrgClaimData
+    meta: dict | None = None
+    error: str | None = None
+
+
+class ScoreOverrideInput(BaseModel):
+    score: float = Field(ge=0, le=39)
+    reason: str = Field(min_length=10)
+
+
+class ScoreOverrideData(BaseModel):
+    org_id: int
+    old_score: float | None
+    new_score: float
+    audit_id: int
+
+
+class ScoreOverrideEnvelope(BaseModel):
+    data: ScoreOverrideData
+    meta: dict | None = None
+    error: str | None = None
+
+
+class AdminQueueClaimItem(BaseModel):
+    id: int
+    org_id: int
+    user_id: int
+    status: str
+    submitted_at: datetime
+
+
+class AdminQueueCertItem(BaseModel):
+    id: int
+    org_id: int
+    status: str
+    submitted_at: datetime
+
+
+class AdminQueueData(BaseModel):
+    pending_claims: list[AdminQueueClaimItem] = Field(default_factory=list)
+    pending_certifications: list[AdminQueueCertItem] = Field(default_factory=list)
+    total_pending: int
+
+
+class AdminQueueEnvelope(BaseModel):
+    data: AdminQueueData
+    meta: dict | None = None
+    error: str | None = None
+
+
+class CertIssueInput(BaseModel):
+    star_rating: int = Field(ge=1, le=5)
+    certified_at: datetime | None = None
+    expires_at: datetime | None = None
+    notes: str | None = None
+
+
+class CertIssueData(BaseModel):
+    org_id: int
+    star_rating: int
+    status: str
+    certified_at: datetime | None
+    expires_at: datetime | None
+    requires_second_approval: bool
+    audit_id: int | None = None
+
+
+class CertIssueEnvelope(BaseModel):
+    data: CertIssueData
+    meta: dict | None = None
+    error: str | None = None
+
+
+class OrgFullAssessmentSnapshot(BaseModel):
+    submission_id: int | None = None
+    has_data: bool
+    overall_score: float | None = None
+    scoring_version: str | None = None
+    scored_at: datetime | None = None
+    pillars: list = Field(default_factory=list)
+
+
+class OrgFullCertification(BaseModel):
+    status: str
+    star_rating: int | None = None
+    certified_at: datetime | None = None
+    expires_at: datetime | None = None
+
+
+class OrgFullProfile(BaseModel):
+    id: int
+    slug: str
+    status: str
+    display_name: str
+    trade_name: str | None = None
+    registered_name: str | None = None
+    founded_year: int | None = None
+    tax_code: str | None = None
+    ai_tags: list[str] = Field(default_factory=list)
+    sdg_numbers: list[int] = Field(default_factory=list)
+    ai_composite_score: float | None = None
+    has_positive_social_impact: bool | None = None
+    star_rating: int | None = None
+    certified_at: datetime | None = None
+    expires_at: datetime | None = None
+    province: TaxonomySummary | None = None
+    ward_name: str | None = None
+    full_address: str | None = None
+    latitude: float | None = None
+    longitude: float | None = None
+    organization_type: TaxonomySummary | None = None
+    primary_industry_sector: TaxonomySummary | None = None
+    environmental_impact_areas: list[TaxonomySummary] = Field(default_factory=list)
+    website: str | None = None
+    assessment: OrgFullAssessmentSnapshot | None = None
+
+
+class OrgFullEnvelope(BaseModel):
+    data: OrgFullProfile
+    meta: dict | None = None
+    error: str | None = None
+
+
+class InsightsSummaryData(BaseModel):
+    total_organizations: int
+    unregistered_count: int
+    registered_count: int
+    certified_count: int
+    provinces_count: int
+    social_impact_organizations: int
+    environmental_impact_organizations: int
+    mappable_organizations: int
+
+
+class InsightsSummaryEnvelope(BaseModel):
+    data: InsightsSummaryData
     meta: StatsOverviewMeta
     error: str | None = None
 

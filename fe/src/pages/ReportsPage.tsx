@@ -70,10 +70,7 @@ export function ReportsPage() {
       <section className="page-intro">
         <div>
           <p className="eyebrow">Reports & analysis</p>
-          <h1>Catalog, aggregate previews, and custom requests.</h1>
-          <p className="lead">
-            Report store dùng metadata thật; due diligence và SROI cards hiển thị raw signals từ backend thay vì formula suy diễn.
-          </p>
+          <h1>Báo cáo &amp; Phân tích</h1>
         </div>
       </section>
 
