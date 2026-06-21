@@ -118,6 +118,7 @@ services:
         condition: service_healthy
     ports:
       - "${FRONTEND_HOST_PORT:-3000}:80"
+      # - "${FRONTEND_HOST_PORT:-5173}:80"
     networks:
       - backend_local
 
