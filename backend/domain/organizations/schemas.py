@@ -38,16 +38,11 @@ class EnterpriseFilterParams(BaseModel):
 
 
 class EnterpriseListParams(EnterpriseFilterParams):
+    q: str | None = None
     page: int = Field(default=1, ge=1)
     page_size: int = Field(default=20, ge=1, le=100)
     sort: EnterpriseListSort = EnterpriseListSort.NAME
     order: SortOrder = SortOrder.ASC
-
-
-class EnterpriseSearchParams(BaseModel):
-    q: str
-    page: int = Field(default=1, ge=1)
-    page_size: int = Field(default=20, ge=1, le=100)
 
 
 class MapBoundingBox(BaseModel):
@@ -172,17 +167,15 @@ class EnterpriseDetail(BaseModel):
 
 
 class EnterpriseListEnvelope(BaseModel):
-    success: bool = True
-    message: str = "ok"
     data: list[EnterpriseListItem]
     meta: PaginationMeta
+    error: str | None = None
 
 
 class EnterpriseDetailEnvelope(BaseModel):
-    success: bool = True
-    message: str = "ok"
     data: EnterpriseDetail
     meta: dict | None = None
+    error: str | None = None
 
 
 class EnterpriseRadarPillarScore(BaseModel):
@@ -201,10 +194,9 @@ class EnterpriseRadarData(BaseModel):
 
 
 class EnterpriseRadarEnvelope(BaseModel):
-    success: bool = True
-    message: str = "ok"
     data: EnterpriseRadarData
     meta: dict | None = None
+    error: str | None = None
 
 
 class EnterpriseQuickInfo(BaseModel):
@@ -223,10 +215,9 @@ class EnterpriseQuickInfo(BaseModel):
 
 
 class EnterpriseQuickEnvelope(BaseModel):
-    success: bool = True
-    message: str = "ok"
     data: EnterpriseQuickInfo
     meta: dict | None = None
+    error: str | None = None
 
 
 class EnterpriseFeaturedItem(BaseModel):
@@ -244,10 +235,9 @@ class EnterpriseFeaturedItem(BaseModel):
 
 
 class EnterpriseFeaturedEnvelope(BaseModel):
-    success: bool = True
-    message: str = "ok"
     data: list[EnterpriseFeaturedItem]
     meta: dict[str, int]
+    error: str | None = None
 
 
 class GeoJSONPointGeometry(BaseModel):
@@ -292,10 +282,9 @@ class EnterpriseMapMeta(BaseModel):
 
 
 class EnterpriseMapEnvelope(BaseModel):
-    success: bool = True
-    message: str = "ok"
     data: EnterpriseMapFeatureCollection
     meta: EnterpriseMapMeta
+    error: str | None = None
 
 
 class StatsOverviewData(BaseModel):
@@ -312,10 +301,9 @@ class StatsOverviewMeta(BaseModel):
 
 
 class StatsOverviewEnvelope(BaseModel):
-    success: bool = True
-    message: str = "ok"
     data: StatsOverviewData
     meta: StatsOverviewMeta
+    error: str | None = None
 
 
 class DashboardProvinceBucket(BaseModel):
@@ -349,24 +337,21 @@ class DashboardBreakdownMeta(BaseModel):
 
 
 class DashboardByProvinceEnvelope(BaseModel):
-    success: bool = True
-    message: str = "ok"
     data: list[DashboardProvinceBucket]
     meta: DashboardBreakdownMeta
+    error: str | None = None
 
 
 class DashboardBySectorEnvelope(BaseModel):
-    success: bool = True
-    message: str = "ok"
     data: list[DashboardSectorBucket]
     meta: DashboardBreakdownMeta
+    error: str | None = None
 
 
 class DashboardByOrganizationTypeEnvelope(BaseModel):
-    success: bool = True
-    message: str = "ok"
     data: list[DashboardOrganizationTypeBucket]
     meta: DashboardBreakdownMeta
+    error: str | None = None
 
 
 class DashboardGrowthBucket(BaseModel):
@@ -386,10 +371,9 @@ class DashboardGrowthMeta(BaseModel):
 
 
 class DashboardGrowthEnvelope(BaseModel):
-    success: bool = True
-    message: str = "ok"
     data: list[DashboardGrowthBucket]
     meta: DashboardGrowthMeta
+    error: str | None = None
 
 
 class DashboardImpactFlowCell(BaseModel):
@@ -411,10 +395,9 @@ class DashboardImpactFlowMeta(BaseModel):
 
 
 class DashboardImpactFlowsEnvelope(BaseModel):
-    success: bool = True
-    message: str = "ok"
     data: list[DashboardImpactFlowCell]
     meta: DashboardImpactFlowMeta
+    error: str | None = None
 
 
 class OrganizationImportContactInput(BaseModel):
@@ -483,10 +466,9 @@ class OrganizationImportSummaryData(BaseModel):
 
 
 class OrganizationImportEnvelope(BaseModel):
-    success: bool = True
-    message: str = "ok"
     data: OrganizationImportSummaryData
     meta: dict | None = None
+    error: str | None = None
 
 
 class OrganizationUpsertData(BaseModel):
@@ -496,13 +478,13 @@ class OrganizationUpsertData(BaseModel):
 
 
 class OrganizationUpsertEnvelope(BaseModel):
-    success: bool = True
-    message: str = "ok"
     data: OrganizationUpsertData
     meta: dict | None = None
+    error: str | None = None
 
 
 def enterprise_list_params(
+    q: str | None = Query(default=None),
     page: int = Query(default=1, ge=1),
     page_size: int = Query(default=20, ge=1, le=100),
     sort: EnterpriseListSort = Query(default=EnterpriseListSort.NAME),
@@ -515,6 +497,7 @@ def enterprise_list_params(
     environmental_impact_area: str | None = Query(default=None, alias="environmentalImpactArea"),
 ) -> EnterpriseListParams:
     return EnterpriseListParams(
+        q=q,
         page=page,
         page_size=page_size,
         sort=sort,
@@ -533,17 +516,6 @@ def enterprise_featured_params(
 ) -> EnterpriseFeaturedParams:
     return EnterpriseFeaturedParams(limit=limit)
 
-
-def enterprise_search_params(
-    q: str = Query(..., min_length=1),
-    page: int = Query(default=1, ge=1),
-    page_size: int = Query(default=20, ge=1, le=100),
-) -> EnterpriseSearchParams:
-    return EnterpriseSearchParams(
-        q=q,
-        page=page,
-        page_size=page_size,
-    )
 
 
 def enterprise_map_params(

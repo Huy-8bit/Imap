@@ -1,5 +1,6 @@
 import { NavLink } from 'react-router-dom'
 
+import logoImg from '../../assets/logo_imap_2.png'
 import { useAuth } from '../../lib/auth/auth'
 import { Button } from '../ui/Button'
 
@@ -19,7 +20,7 @@ export function NavBar() {
     <header className="site-header">
       <div className="brand-lockup">
         <NavLink to="/" className="brand-mark">
-          i<span>Map</span>Vietnam
+          <img src={logoImg} alt="iMap Vietnam" style={{ height: 40 }} />
         </NavLink>
         <p className="brand-subtitle">Impact Economy Digital Hub</p>
       </div>

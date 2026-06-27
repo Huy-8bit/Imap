@@ -44,21 +44,18 @@ class IidPartner(BaseModel):
 
 
 class IidAboutEnvelope(BaseModel):
-    success: bool = True
-    message: str = "ok"
     data: IidAboutPage
     meta: dict | None = None
+    error: str | None = None
 
 
 class IidTeamEnvelope(BaseModel):
-    success: bool = True
-    message: str = "ok"
     data: list[IidTeamMember]
     meta: dict[str, int]
+    error: str | None = None
 
 
 class IidPartnersEnvelope(BaseModel):
-    success: bool = True
-    message: str = "ok"
     data: list[IidPartner]
     meta: dict[str, int]
+    error: str | None = None

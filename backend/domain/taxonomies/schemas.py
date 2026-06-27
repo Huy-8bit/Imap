@@ -27,14 +27,12 @@ class TaxonomyGroupResponse(BaseModel):
 
 
 class TaxonomyCatalogEnvelope(BaseModel):
-    success: bool = True
-    message: str = "ok"
     data: TaxonomyCatalogResponse
     meta: dict[str, Any] | None = None
+    error: str | None = None
 
 
 class TaxonomyGroupEnvelope(BaseModel):
-    success: bool = True
-    message: str = "ok"
     data: TaxonomyGroupResponse
     meta: dict[str, Any] | None = None
+    error: str | None = None

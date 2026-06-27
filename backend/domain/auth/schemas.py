@@ -73,21 +73,18 @@ class AuthUserProfile(BaseModel):
 
 
 class AuthTokenEnvelope(BaseModel):
-    success: bool = True
-    message: str = "ok"
     data: AuthTokenData
     meta: dict | None = None
+    error: str | None = None
 
 
 class AuthMeEnvelope(BaseModel):
-    success: bool = True
-    message: str = "ok"
     data: AuthUserProfile
     meta: dict | None = None
+    error: str | None = None
 
 
 class LogoutEnvelope(BaseModel):
-    success: bool = True
-    message: str = "ok"
     data: dict[str, bool]
     meta: dict | None = None
+    error: str | None = None

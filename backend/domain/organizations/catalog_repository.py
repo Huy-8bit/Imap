@@ -12,7 +12,6 @@ from .schemas import (
     EnterpriseListParams,
     EnterpriseListSort,
     EnterpriseMapParams,
-    EnterpriseSearchParams,
     MapBoundingBox,
     SortOrder,
     StatsOverviewParams,
@@ -155,27 +154,23 @@ class OrganizationCatalogRepository:
         )
         return rows, total
 
-    def search_enterprises(self, params: EnterpriseSearchParams) -> tuple[list[dict], int]:
+    def search_enterprises(self, params: EnterpriseListParams) -> tuple[list[dict], int]:
         normalized_query = clean_text(params.q)
-        search_params = {
+        filter_where_sql, filter_params = self._build_filter_query(params)
+        text_where_sql = (
+            f"(similarity({SEARCH_DOCUMENT_SQL}, %(q)s) >= %(similarity_threshold)s"
+            f" OR {SEARCH_DOCUMENT_SQL} ILIKE %(contains_q)s)"
+        )
+        combined_where_sql = f"{text_where_sql} AND {filter_where_sql}"
+        query_params = {
             "q": normalized_query,
             "prefix_q": f"{normalized_query}%",
             "contains_q": f"%{normalized_query}%",
+            "similarity_threshold": SEARCH_SIMILARITY_THRESHOLD,
+            **filter_params,
         }
 
-        total_row = self._db.fetch_one(
-            f"""
-            SELECT COUNT(*) AS total
-            FROM organizations o
-            WHERE similarity({SEARCH_DOCUMENT_SQL}, %(q)s) >= %(similarity_threshold)s
-               OR {SEARCH_DOCUMENT_SQL} ILIKE %(contains_q)s
-            """,
-            {
-                **search_params,
-                "similarity_threshold": SEARCH_SIMILARITY_THRESHOLD,
-            },
-        )
-        total = int(total_row["total"]) if total_row else 0
+        total = self._count_enterprises(combined_where_sql, query_params)
 
         rows = self._db.fetch_all(
             f"""
@@ -200,8 +195,7 @@ class OrganizationCatalogRepository:
                 ol.location_precision,
                 o.source_status
             {CATALOG_FROM_SQL}
-            WHERE similarity({SEARCH_DOCUMENT_SQL}, %(q)s) >= %(similarity_threshold)s
-               OR {SEARCH_DOCUMENT_SQL} ILIKE %(contains_q)s
+            WHERE {combined_where_sql}
             ORDER BY
                 CASE
                     WHEN lower(coalesce(o.trade_name, '')) = lower(%(q)s) THEN 1.0
@@ -218,12 +212,7 @@ class OrganizationCatalogRepository:
                 o.id ASC
             LIMIT %(limit)s OFFSET %(offset)s
             """,
-            {
-                **search_params,
-                "similarity_threshold": SEARCH_SIMILARITY_THRESHOLD,
-                "limit": params.page_size,
-                "offset": (params.page - 1) * params.page_size,
-            },
+            {**query_params, "limit": params.page_size, "offset": (params.page - 1) * params.page_size},
         )
         return rows, total
 

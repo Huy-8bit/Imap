@@ -126,7 +126,7 @@ class DashboardByProvinceApiTests(unittest.TestCase):
 
         self.assertEqual(response.status_code, 200)
         payload = response.json()
-        self.assertTrue(payload["success"])
+        self.assertIsNone(payload["error"])
         self.assertEqual(payload["meta"]["group_by"], "province")
         self.assertEqual(payload["meta"]["matched_total"], 3)
         self.assertEqual(payload["meta"]["bucket_count"], 3)
@@ -251,7 +251,7 @@ class DashboardByProvinceApiTests(unittest.TestCase):
 
         self.assertEqual(response.status_code, 200)
         payload = response.json()
-        self.assertTrue(payload["success"])
+        self.assertIsNone(payload["error"])
         self.assertFalse(payload["meta"]["cache_hit"])
         self.assertEqual(payload["meta"]["matched_total"], 1)
         self.assertEqual(payload["data"][0]["province_code"], "hanoi")

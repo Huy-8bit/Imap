@@ -247,15 +247,15 @@ Response mong đợi khi đủ dependency:
 
 ```json
 {
-  "success": true,
-  "message": "ok",
   "data": {
     "status": "ok",
     "dependencies": {
       "postgresql": "ok",
       "redis": "ok"
     }
-  }
+  },
+  "meta": null,
+  "error": null
 }
 ```
 
@@ -341,6 +341,85 @@ backend/.venv/bin/python -m unittest \
   backend.tests.test_dashboard_by_province_api \
   backend.tests.test_dashboard_by_sector_api
 ```
+
+## Response envelope
+
+Tất cả successful response của API đều theo contract sau:
+
+```json
+{
+  "data": "<payload>",
+  "meta": "<object hoặc null>",
+  "error": null
+}
+```
+
+| Field | Kiểu | Mô tả |
+| --- | --- | --- |
+| `data` | any | Payload chính — object, list, hoặc dict tuỳ endpoint |
+| `meta` | object \| null | Pagination, cache info, aggregation context, v.v. `null` cho các single-item response |
+| `error` | string \| null | Luôn `null` khi thành công |
+
+### Ví dụ — single object (no pagination)
+
+```json
+{
+  "data": { "id": 1, "display_name": "Alpha Corp", ... },
+  "meta": null,
+  "error": null
+}
+```
+
+### Ví dụ — paginated list
+
+```json
+{
+  "data": [ ... ],
+  "meta": {
+    "total": 42,
+    "page": 1,
+    "page_size": 20,
+    "total_pages": 3
+  },
+  "error": null
+}
+```
+
+### Error response (4xx / 5xx)
+
+Error response đến từ global error handler (`libs/http/responses.py`), **không dùng envelope trên**, mà trả:
+
+```json
+{
+  "success": false,
+  "message": "enterprise not found"
+}
+```
+
+Hoặc validation error (422) từ FastAPI:
+
+```json
+{
+  "success": false,
+  "message": "...",
+  "detail": [...]
+}
+```
+
+### Thay đổi so với phiên bản cũ
+
+Trước đây (trước refactor) tất cả response trả thêm 2 field:
+
+```json
+{
+  "success": true,
+  "message": "ok",
+  "data": ...,
+  "meta": ...
+}
+```
+
+Đã xoá `success` và `message` khỏi tất cả 40 `*Envelope` class trong `domain/*/schemas.py`, thêm `error: str | None = None`. Nếu FE hoặc client cũ đang đọc `payload.success` hoặc `payload.message` từ successful response thì cần cập nhật lại.
 
 ## Public API notes
 
