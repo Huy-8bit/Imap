@@ -2,7 +2,7 @@ import { useQuery } from '@tanstack/react-query'
 import { Link } from 'react-router-dom'
 
 import dnPic6 from '../assets/DN-Pic6.jpg'
-import dnPic7 from '../assets/DN-Pic7.jpg'
+import dnPic7 from '../assets/DN-pic7.jpg'
 import dnPic8 from '../assets/DN-Pic8.jpg'
 import { getNews, getIidAbout } from '../features/content/api'
 import { getDashboardByProvince, getStatsOverview } from '../features/dashboard/api'
