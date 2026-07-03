@@ -4,7 +4,7 @@ Backend Python dùng `FastAPI`, có sẵn thư viện dùng chung cho HTTP, logg
 
 Backend có thể chạy theo 2 mode:
 
-- `docker compose`: backend + PostGIS + Redis cùng network, backend expose host `127.0.0.1:8010`
+- `docker compose`: frontend + backend + PostGIS + Redis cùng network; local expose FE `127.0.0.1:8080`, backend `127.0.0.1:8010`
 - host Python local: dùng `backend/.env` và tự chạy `python -m backend.service.main`
 
 Tài liệu API tổng hợp 1 file:
@@ -100,8 +100,9 @@ Compose này sẽ tạo:
 - `postgis/postgis:16-3.4-alpine`
 - `redis:7-alpine`
 - `backend` build từ `backend/Dockerfile`
+- `frontend` build từ `fe/Dockerfile`, serve static bằng nginx và proxy `/api` về backend nội bộ
 - volume persist cho cả PostgreSQL và Redis
-- healthcheck cho 3 service
+- healthcheck cho backend/dependencies
 
 Backend container startup flow:
 
@@ -113,6 +114,7 @@ Backend container startup flow:
 
 Sau khi stack lên:
 
+- Frontend local: `http://127.0.0.1:8080`
 - API base: `http://127.0.0.1:8010`
 - Swagger docs: `http://127.0.0.1:8010/docs`
 
@@ -133,6 +135,42 @@ Logs backend:
 ```bash
 docker compose --env-file devops/.env -f devops/docker-compose.yml logs -f backend
 ```
+
+## Deploy server `103.1.236.121`
+
+Tạo env từ mẫu server:
+
+```bash
+cp devops/.env.server.example devops/.env
+```
+
+Trước khi chạy, đổi ít nhất:
+
+- `POSTGRES_PASSWORD`
+- `JWT_SECRET`
+- `GOOGLE_CLIENT_ID` và `VITE_GOOGLE_CLIENT_ID` nếu bật Google Sign-In
+
+Chạy full stack:
+
+```bash
+docker compose --env-file devops/.env -f devops/docker-compose.yml up --build -d
+```
+
+Mặc định server deploy:
+
+- Frontend public: `http://103.1.236.121`
+- Backend chỉ bind host-local: `127.0.0.1:8010`
+- PostgreSQL/Redis chỉ bind host-local để tránh mở DB/cache ra internet
+- nginx frontend proxy `/api/*` tới backend container, nên FE gọi API cùng origin
+
+Kiểm tra:
+
+```bash
+curl http://103.1.236.121/api/health
+curl http://127.0.0.1:8010/api/health
+```
+
+Nếu server có firewall, mở inbound TCP `80`. Chỉ mở `8010`, `5433`, `6379` khi có nhu cầu vận hành riêng và đã giới hạn IP truy cập.
 
 ### 3. Chạy backend bằng Python local
 

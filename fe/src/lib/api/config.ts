@@ -1,4 +1,5 @@
-const DEFAULT_API_BASE_URL = 'http://127.0.0.1:8010'
+const DEFAULT_API_BASE_URL =
+  typeof window !== 'undefined' ? window.location.origin : 'http://127.0.0.1:8010'
 
 function resolveBaseUrl(): string {
   const envUrl = import.meta.env.VITE_API_BASE_URL as string | undefined

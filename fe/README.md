@@ -23,6 +23,10 @@ Mặc định app gọi backend tại:
 
 - `VITE_API_BASE_URL=http://127.0.0.1:8010`
 
+Khi build bằng Docker cho server, biến này được truyền từ `devops/.env.server.example`:
+
+- `VITE_API_BASE_URL=http://103.1.236.121`
+
 Để bật Google Sign-In, tạo OAuth Web Client ID trong Google Cloud Console rồi điền cùng một client ID vào:
 
 - `fe/.env`: `VITE_GOOGLE_CLIENT_ID=...`
@@ -45,6 +49,12 @@ Nếu backend chạy port khác, đổi lại biến trên.
 ```bash
 npm run build
 ```
+
+## Docker deploy
+
+Compose ở `devops/docker-compose.yml` build `fe/Dockerfile`, serve static bằng nginx ở port 80 và proxy `/api` về backend nội bộ. Với env server hiện tại, frontend public là:
+
+- `http://103.1.236.121`
 
 ## Ghi chú
 
