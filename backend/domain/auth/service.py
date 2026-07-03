@@ -31,6 +31,9 @@ from .schemas import (
     LogoutRequest,
     RefreshRequest,
     RegisterRequest,
+    SetupAdminData,
+    SetupAdminEnvelope,
+    SetupAdminRequest,
 )
 from .security import decode_signed_token, hash_password, hash_token, issue_signed_token, new_session_id, verify_password
 
@@ -184,6 +187,38 @@ class AuthService:
             revoked = True
 
         return LogoutEnvelope(data={"revoked": revoked})
+
+    def setup_admin(self, payload: SetupAdminRequest, *, expected_secret: str) -> SetupAdminEnvelope:
+        if not expected_secret or payload.secret != expected_secret:
+            raise UnauthorizedError("invalid setup secret")
+
+        if self._repository.admin_exists():
+            from backend.libs.http.errors import ConflictError
+            raise ConflictError("admin account already exists")
+
+        email = self._normalize_email(payload.email)
+        if self._repository.get_user_auth_row_by_email(email) is not None:
+            raise ConflictError("email already registered")
+
+        role = self._repository.get_role_by_code(ADMIN_ROLE_CODE)
+        if role is None:
+            raise RuntimeError("admin role not found — run seed_taxonomies first")
+
+        user_id = self._repository.create_user(
+            email=email,
+            password_hash=hash_password(payload.password),
+            full_name=clean_text(payload.full_name),
+            role_id=int(role["id"]),
+        )
+        return SetupAdminEnvelope(
+            data=SetupAdminData(
+                user_id=user_id,
+                email=email,
+                full_name=clean_text(payload.full_name),
+                role=ADMIN_ROLE_CODE,
+            ),
+            meta={"note": "login via POST /api/auth/login with the credentials you just set"},
+        )
 
     def me(self, user: AuthenticatedUser) -> AuthMeEnvelope:
         context = self._repository.get_user_context_by_id(user.id)

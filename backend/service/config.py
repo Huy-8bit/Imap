@@ -70,7 +70,14 @@ class AppConfig:
     jwt_access_ttl_minutes: int = _int("JWT_ACCESS_TTL_MINUTES", 15)
     jwt_refresh_ttl_days: int = _int("JWT_REFRESH_TTL_DAYS", 30)
     google_client_id: str = _str("GOOGLE_CLIENT_ID")
+    # Secret dùng để gọi POST /api/auth/setup-admin — để trống thì endpoint bị tắt
+    setup_admin_secret: str = _str("SETUP_ADMIN_SECRET", "")
     file_storage_root: str = _str("FILE_STORAGE_ROOT", "storage")
+
+    # ── Rate limiting ────────────────────────────────────────────────
+    rate_limit_public: int = _int("RATE_LIMIT_PUBLIC", 100)            # req/min per IP
+    rate_limit_authenticated: int = _int("RATE_LIMIT_AUTHENTICATED", 1000)  # req/min per user_id
+    rate_limit_window_seconds: int = _int("RATE_LIMIT_WINDOW_SECONDS", 60)
 
     # ── Seed / import ─────────────────────────────────────────────────
     seed_data_dir: str = _str("SEED_DATA_DIR", "docs/iMapVN/Data/Sample-iMap-Json")

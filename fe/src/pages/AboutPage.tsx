@@ -25,7 +25,7 @@ export function AboutPage() {
         <div>
           <p className="eyebrow">About IID</p>
           <h1>{aboutQuery.data?.data.title || 'Institute for Innovation and Development'}</h1>
-          <p className="lead">{aboutQuery.data?.data.summary || 'IID CMS content đang được lấy trực tiếp từ backend.'}</p>
+          {aboutQuery.data?.data.summary ? <p className="lead">{aboutQuery.data.data.summary}</p> : null}
         </div>
       </section>
 
@@ -62,7 +62,7 @@ export function AboutPage() {
               ))}
             </div>
           ) : (
-            <EmptyState title="Chưa có team records" description="Backend IID team endpoint hiện trả rỗng trong dataset local." />
+            <EmptyState title="Chưa có thành viên" description="Thông tin đang được cập nhật." />
           )}
         </Card>
 
@@ -84,7 +84,7 @@ export function AboutPage() {
               ))}
             </div>
           ) : (
-            <EmptyState title="Chưa có partner records" description="Backend IID partners endpoint hiện trả rỗng trong dataset local." />
+            <EmptyState title="Chưa có đối tác" description="Thông tin đang được cập nhật." />
           )}
         </Card>
       </div>

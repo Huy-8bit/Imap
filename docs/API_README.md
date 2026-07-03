@@ -18,26 +18,34 @@ Mục tiêu:
 Ví dụ:
 
 - health check: `GET /api/health`
-- enterprise list: `GET /api/enterprises`
+- enterprise list: `GET /api/v1/orgs`
 
 ## 2. Response envelope chung
 
-Phần lớn API trả theo envelope:
+Tất cả API trả theo envelope:
 
 ```json
 {
-  "success": true,
-  "message": "ok",
   "data": {},
-  "meta": {}
+  "meta": {},
+  "error": null
 }
 ```
 
 Ghi chú:
 
-- `data`: payload chính
-- `meta`: pagination, cache info, filter info, aggregate info
-- một số endpoint đơn giản có thể không trả `meta` hoặc `meta=null`
+- `data`: payload chính — object, list, hoặc dict tuỳ endpoint
+- `meta`: pagination, cache info, filter info, aggregate info; `null` cho single-item response
+- `error`: luôn `null` khi thành công
+
+Error response (4xx/5xx) đến từ global error handler, trả riêng:
+
+```json
+{
+  "success": false,
+  "message": "enterprise not found"
+}
+```
 
 ## 3. Auth model
 
@@ -124,14 +132,17 @@ Auth:
 
 ### 4.3 Enterprises
 
-#### `GET /api/enterprises`
+Các route bên dưới mount ở `/api/v1/orgs` (primary) và `/api/enterprises` (deprecated, giữ để backward compat).
+
+#### `GET /api/v1/orgs`
 
 Mục đích:
 
-- danh sách doanh nghiệp public
+- danh sách doanh nghiệp public; hỗ trợ search tên qua `q`
 
 Query chính:
 
+- `q` — tìm kiếm tên (trigram similarity), tối thiểu 2 ký tự
 - `page`
 - `page_size`
 - `sort`
@@ -147,7 +158,7 @@ Auth:
 
 - public
 
-#### `POST /api/enterprises`
+#### `POST /api/v1/orgs`
 
 Mục đích:
 
@@ -162,23 +173,7 @@ Ghi chú:
 - reuse đúng pipeline normalize/validate/upsert của import service
 - response trả cả `operation` (`inserted` hoặc `updated`) và enterprise detail sau khi ghi DB
 
-#### `GET /api/enterprises/search`
-
-Mục đích:
-
-- tìm kiếm doanh nghiệp theo tên
-
-Query chính:
-
-- `q` bắt buộc
-- `page`
-- `page_size`
-
-Auth:
-
-- public
-
-#### `POST /api/enterprises/import`
+#### `POST /api/v1/orgs/import`
 
 Mục đích:
 
@@ -199,7 +194,7 @@ Ghi chú:
 - `dryRun=true` chỉ validate và trả summary/errors, không ghi DB
 - `dryRun=false` sẽ create/update organization thật và ghi audit import run
 
-#### `POST /api/enterprises/self-registration`
+#### `POST /api/v1/orgs/self-registration`
 
 Mục đích:
 
@@ -211,7 +206,7 @@ Auth:
 
 Body chính:
 
-- cùng format 1 organization record của `POST /api/enterprises`
+- cùng format 1 organization record của `POST /api/v1/orgs`
 - các trường bắt buộc theo validator hiện tại gồm tên doanh nghiệp, `operationalStatus`, `organizationType`, `primaryIndustrySector`, `primaryProductType`
 
 Ghi chú:
@@ -220,7 +215,7 @@ Ghi chú:
 - nếu hồ sơ đã được link với account khác, API trả conflict
 - sau khi thành công, gọi lại `GET /api/auth/me` để lấy organization link mới
 
-#### `GET /api/enterprises/featured`
+#### `GET /api/v1/orgs/featured`
 
 Mục đích:
 
@@ -234,7 +229,7 @@ Auth:
 
 - public
 
-#### `GET /api/enterprises/{id}`
+#### `GET /api/v1/orgs/{id}`
 
 Mục đích:
 
@@ -244,7 +239,7 @@ Auth:
 
 - public
 
-#### `GET /api/enterprises/{id}/quick`
+#### `GET /api/v1/orgs/{id}/quick`
 
 Mục đích:
 
@@ -254,7 +249,7 @@ Auth:
 
 - public
 
-#### `GET /api/enterprises/{id}/radar`
+#### `GET /api/v1/orgs/{id}/radar`
 
 Mục đích:
 
@@ -272,11 +267,33 @@ Ghi chú:
 
 ### 4.4 Map
 
+#### `GET /api/v1/map/pins`
+
+Mục đích:
+
+- trả GeoJSON `FeatureCollection` tối giản cho map rendering — tải nhanh, không filter
+
+Auth:
+
+- public
+
+Properties trong mỗi feature:
+
+- `id`
+- `status` (`unregistered` | `registered` | `certified`)
+- `primary_ai_tag` — phần tử đầu `ai_tags[]`, `null` nếu chưa có tag
+
+Ghi chú:
+
+- chỉ organization có geometry hợp lệ mới ra `features`
+- không hỗ trợ filter hay bbox — trả toàn bộ pin một lần
+- `meta` có `total` (số feature trả về)
+
 #### `GET /api/map/enterprises`
 
 Mục đích:
 
-- trả GeoJSON `FeatureCollection` cho doanh nghiệp có geometry hợp lệ
+- trả GeoJSON `FeatureCollection` đầy đủ field, hỗ trợ filter và bbox
 
 Query chính:
 
@@ -786,8 +803,8 @@ Auth:
 
 ### Admin writes
 
-- `POST /api/enterprises`
-- `POST /api/enterprises/import`
+- `POST /api/v1/orgs`
+- `POST /api/v1/orgs/import`
 - `PUT /api/certification/{applicationId}/review`
 - `PUT /api/certification/{certificationId}/upgrade`
 - `POST /api/news`
@@ -803,8 +820,8 @@ Auth:
 
 Hiện tại backend có **2 đường import/admin ingest qua HTTP**:
 
-- `POST /api/enterprises`
-- `POST /api/enterprises/import`
+- `POST /api/v1/orgs`
+- `POST /api/v1/orgs/import`
 
 Nhưng backend vẫn **chưa có** HTTP endpoint riêng cho:
 
@@ -845,7 +862,7 @@ Khi chạy backend bằng Docker Compose, entrypoint hiện làm:
 
 Tức là:
 
-- import organizations thủ công từ admin UI/HTTP đã có thể đi qua `POST /api/enterprises` hoặc `POST /api/enterprises/import`
+- import organizations thủ công từ admin UI/HTTP đã có thể đi qua `POST /api/v1/orgs` hoặc `POST /api/v1/orgs/import`
 - nhưng bootstrap dữ liệu nền của môi trường vẫn đi qua **script/bootstrap**
 
 ### Nếu cần “import data qua API” sau này
@@ -864,14 +881,12 @@ Các API FE public có thể dùng ngay:
 - `GET /api/health`
 - `GET /api/taxonomies`
 - `GET /api/taxonomies/{taxonomy_name}`
-- `GET /api/enterprises`
-- `POST /api/enterprises`
-- `GET /api/enterprises/search`
-- `POST /api/enterprises/import`
-- `GET /api/enterprises/featured`
-- `GET /api/enterprises/{id}`
-- `GET /api/enterprises/{id}/quick`
-- `GET /api/enterprises/{id}/radar`
+- `GET /api/v1/orgs`
+- `GET /api/v1/orgs/featured`
+- `GET /api/v1/orgs/{id}`
+- `GET /api/v1/orgs/{id}/quick`
+- `GET /api/v1/orgs/{id}/radar`
+- `GET /api/v1/map/pins`
 - `GET /api/map/enterprises`
 - `GET /api/stats/overview`
 - `GET /api/dashboard/by-province`

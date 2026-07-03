@@ -75,6 +75,19 @@ class AuthRepository:
             (user_id,),
         )
 
+    def admin_exists(self) -> bool:
+        row = self._db.fetch_one(
+            """
+            SELECT 1
+            FROM users u
+            JOIN user_roles ur ON ur.id = u.role_id
+            WHERE ur.code = 'admin'
+              AND u.status = 'active'
+            LIMIT 1
+            """
+        )
+        return row is not None
+
     def get_user_auth_row_by_email(self, email: str) -> dict[str, Any] | None:
         return self._db.fetch_one(
             """

@@ -88,3 +88,23 @@ class LogoutEnvelope(BaseModel):
     data: dict[str, bool]
     meta: dict | None = None
     error: str | None = None
+
+
+class SetupAdminRequest(BaseModel):
+    secret: str
+    email: str
+    password: str = Field(min_length=8)
+    full_name: str | None = None
+
+
+class SetupAdminData(BaseModel):
+    user_id: int
+    email: str
+    full_name: str | None
+    role: str
+
+
+class SetupAdminEnvelope(BaseModel):
+    data: SetupAdminData
+    meta: dict | None = None
+    error: str | None = None

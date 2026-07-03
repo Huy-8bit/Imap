@@ -5,6 +5,7 @@ from typing import Any
 __all__ = [
     "DashboardBreakdownService",
     "EnterpriseCatalogService",
+    "InsightsSummaryService",
     "OrganizationAdminService",
     "OrganizationCatalogRepository",
     "OrganizationImportRepository",
@@ -29,14 +30,16 @@ def __getattr__(name: str) -> Any:
     if name in {
         "DashboardBreakdownService",
         "EnterpriseCatalogService",
+        "InsightsSummaryService",
         "OrganizationAdminService",
         "StatsOverviewService",
     }:
-        from .service import DashboardBreakdownService, EnterpriseCatalogService, OrganizationAdminService, StatsOverviewService
+        from .service import DashboardBreakdownService, EnterpriseCatalogService, InsightsSummaryService, OrganizationAdminService, StatsOverviewService
 
         services = {
             "DashboardBreakdownService": DashboardBreakdownService,
             "EnterpriseCatalogService": EnterpriseCatalogService,
+            "InsightsSummaryService": InsightsSummaryService,
             "OrganizationAdminService": OrganizationAdminService,
             "StatsOverviewService": StatsOverviewService,
         }

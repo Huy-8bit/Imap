@@ -9,7 +9,7 @@ Backend có thể chạy theo 2 mode:
 
 Tài liệu API tổng hợp 1 file:
 
-- [docs/API_README.md](/Users/huy8bit/Desktop/DEV/project/imap/docs/API_README.md)
+- [docs/API_README.md](docs/API_README.md)
 
 ## Tổng quan source code
 
@@ -34,10 +34,10 @@ backend/
 │       ├── auth.py            # /api/auth/*
 │       ├── certification.py   # /api/certification/*
 │       ├── dashboard.py       # /api/dashboard/* public breakdowns + Redis cache
-│       ├── enterprises.py     # /api/enterprises* public catalog APIs
+│       ├── enterprises.py     # /api/v1/orgs* (và /api/enterprises* deprecated) public catalog APIs
 │       ├── health.py          # /api/health kiểm tra PostgreSQL + Redis
 │       ├── iid.py             # /api/iid/*
-│       ├── map.py             # /api/map/enterprises public GeoJSON map API
+│       ├── map.py             # /api/map/enterprises (full-featured), /api/v1/map/pins (lean GeoJSON)
 │       ├── news.py            # /api/news CRUD
 │       ├── reports.py         # /api/reports/*
 │       ├── stats.py           # /api/stats/overview public aggregates + Redis cache
@@ -268,14 +268,18 @@ curl http://127.0.0.1:8010/api/taxonomies/provinces
 ### Enterprise catalog checks
 
 ```bash
-curl "http://127.0.0.1:8010/api/enterprises?page=1&page_size=20"
-curl "http://127.0.0.1:8010/api/enterprises/search?q=Catalog%20Alpha&page=1&page_size=5"
-curl "http://127.0.0.1:8010/api/enterprises/2"
+curl "http://127.0.0.1:8010/api/v1/orgs?page=1&page_size=20"
+curl "http://127.0.0.1:8010/api/v1/orgs?q=Catalog%20Alpha&page=1&page_size=5"
+curl "http://127.0.0.1:8010/api/v1/orgs/2"
 ```
 
 ### Enterprise map checks
 
 ```bash
+# Lean pin endpoint — trả GeoJSON FeatureCollection với id, status, primary_ai_tag
+curl "http://127.0.0.1:8010/api/v1/map/pins"
+
+# Full-featured map (có filter + bbox)
 curl "http://127.0.0.1:8010/api/map/enterprises"
 curl "http://127.0.0.1:8010/api/map/enterprises?province=ho_chi_minh_city&operationalStatus=active&organizationType=private_enterprise&primaryIndustrySector=manufacturing&hasPositiveSocialImpact=true&environmentalImpactArea=climate_change"
 curl "http://127.0.0.1:8010/api/map/enterprises?bbox=105.80,21.00,105.90,21.08"
@@ -339,7 +343,8 @@ backend/.venv/bin/python -m unittest \
   backend.tests.test_enterprise_map_api \
   backend.tests.test_stats_overview_api \
   backend.tests.test_dashboard_by_province_api \
-  backend.tests.test_dashboard_by_sector_api
+  backend.tests.test_dashboard_by_sector_api \
+  backend.tests.test_google_auth_service
 ```
 
 ## Response envelope
@@ -423,15 +428,16 @@ Trước đây (trước refactor) tất cả response trả thêm 2 field:
 
 ## Public API notes
 
-- `/api/enterprises`, `/api/map/enterprises`, `/api/stats/overview`, `/api/dashboard/by-province` và `/api/dashboard/by-sector` đang dùng cùng filter semantics theo taxonomy `code` đã seed:
+- `/api/v1/orgs` (primary), `/api/enterprises` (deprecated), `/api/map/enterprises`, `/api/stats/overview`, `/api/dashboard/by-province` và `/api/dashboard/by-sector` đang dùng cùng filter semantics theo taxonomy `code` đã seed:
   - `province`
   - `operationalStatus`
   - `organizationType`
   - `primaryIndustrySector`
   - `hasPositiveSocialImpact`
   - `environmentalImpactArea`
-- `/api/map/enterprises` trả `GeoJSON FeatureCollection` trong `data`.
-- `bbox` của map API có format `minLng,minLat,maxLng,maxLat`.
+- `/api/map/enterprises` trả `GeoJSON FeatureCollection` đầy đủ field trong `data`.
+- `/api/v1/map/pins` trả `GeoJSON FeatureCollection` tối giản cho map rendering — mỗi feature chỉ có `id`, `status`, `primary_ai_tag` trong `properties`. Không hỗ trợ filter hay bbox.
+- `bbox` của `/api/map/enterprises` có format `minLng,minLat,maxLng,maxLat`.
 - Map meta hiện trả:
   - `matched_total`: số organization khớp attribute filters trước khi áp bbox
   - `mappable_total`: số organization khớp filters và có geometry hợp lệ
@@ -542,18 +548,21 @@ Trước đây (trước refactor) tất cả response trả thêm 2 field:
 - `backend/service/main.py` hiện đã dùng import path `backend.service.app:app`, nên chạy từ root repo.
 - `backend/service/routes/health.py` sẽ gọi `ping()` tới PostgreSQL và Redis ở mỗi lần check.
 - `backend/service/routes/taxonomies.py` trả taxonomy đã seed theo response envelope hiện có.
-- `backend/service/routes/enterprises.py` hiện có:
-  - `GET /api/enterprises`
-  - `POST /api/enterprises`
-  - `GET /api/enterprises/search`
-  - `POST /api/enterprises/import`
-  - `GET /api/enterprises/featured`
-  - `GET /api/enterprises/{id}/quick`
-  - `GET /api/enterprises/{id}/radar`
-  - `GET /api/enterprises/{id}`
+- `backend/service/routes/enterprises.py` mount ở 2 prefix: `/api/v1/orgs` (primary) và `/api/enterprises` (deprecated). Hiện có:
+  - `GET /api/v1/orgs` — list + search qua `q` param
+  - `POST /api/v1/orgs` — admin upsert 1 organization
+  - `POST /api/v1/orgs/import` — admin bulk import
+  - `POST /api/v1/orgs/self-registration` — enterprise tự đăng ký
+  - `GET /api/v1/orgs/featured`
+  - `GET /api/v1/orgs/{id}/quick`
+  - `GET /api/v1/orgs/{id}/radar`
+  - `GET /api/v1/orgs/{id}`
+- `backend/service/routes/map.py` mount ở cả `/api/map` và `/api/v1/map`. Hiện có:
+  - `GET /api/v1/map/pins` — lean GeoJSON chỉ có id/status/primary_ai_tag, dùng cho map rendering
+  - `GET /api/map/enterprises` — full-featured map với filter + bbox
 - Admin hiện có 2 đường ingest organization qua HTTP:
-  - `POST /api/enterprises`: upsert 1 organization
-  - `POST /api/enterprises/import`: import nhiều organization, hỗ trợ `dryRun`
+  - `POST /api/v1/orgs`: upsert 1 organization
+  - `POST /api/v1/orgs/import`: import nhiều organization, hỗ trợ `dryRun`
 - Các script `backend.scripts.migrate`, `backend.scripts.seed_taxonomies`, `backend.scripts.import_organizations` vẫn là đường bootstrap/import nền của môi trường.
 - `backend/service/routes/dashboard.py` hiện có:
   - `GET /api/dashboard/by-province`

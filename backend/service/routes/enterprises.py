@@ -9,6 +9,8 @@ from backend.domain.organizations import (
     OrganizationCatalogRepository,
     OrganizationImportRepository,
 )
+from backend.domain.organizations.claim_repository import OrgClaimRepository
+from backend.domain.organizations.claim_service import OrgClaimService
 from backend.domain.organizations.schemas import (
     EnterpriseDetailEnvelope,
     EnterpriseFeaturedEnvelope,
@@ -17,6 +19,9 @@ from backend.domain.organizations.schemas import (
     EnterpriseListParams,
     EnterpriseQuickEnvelope,
     EnterpriseRadarEnvelope,
+    OrgClaimEnvelope,
+    OrgClaimInput,
+    OrgFullEnvelope,
     OrganizationImportEnvelope,
     OrganizationImportRecordInput,
     OrganizationImportRequest,
@@ -103,6 +108,30 @@ async def get_org_radar(
 ) -> EnterpriseRadarEnvelope:
     service = EnterpriseCatalogService(OrganizationCatalogRepository(db))
     return service.get_enterprise_radar(organization_id)
+
+
+@router.get("/{organization_id}/full", response_model=OrgFullEnvelope)
+async def get_org_full(
+    organization_id: int = Path(..., ge=1),
+    user: AuthenticatedUser = Depends(require_roles("investor", "admin")),
+    db: PostgreSQLClient = Depends(get_postgresql_client),
+) -> OrgFullEnvelope:
+    service = EnterpriseCatalogService(OrganizationCatalogRepository(db))
+    return service.get_org_full(organization_id)
+
+
+@router.post("/{organization_id}/claim", response_model=OrgClaimEnvelope)
+async def claim_org(
+    payload: OrgClaimInput,
+    organization_id: int = Path(..., ge=1),
+    user: AuthenticatedUser = Depends(require_roles("enterprise")),
+    db: PostgreSQLClient = Depends(get_postgresql_client),
+) -> OrgClaimEnvelope:
+    return OrgClaimService(OrgClaimRepository(db)).submit_claim(
+        organization_id,
+        payload,
+        current_user=user,
+    )
 
 
 @router.get("/{organization_id}", response_model=EnterpriseDetailEnvelope)

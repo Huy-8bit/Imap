@@ -5,3 +5,6 @@
 0008 — Tạo ai_scoring_jobs (scraping URLs, raw text snapshot, Claude API output, cost tracking). Có unique index đảm bảo mỗi org chỉ có 1 job đang chạy.
 0009 — Tạo audit_log với RLS FORCE — không ai UPDATE/DELETE được, kể cả superuser. Có helper function write_audit_log() để gọi từ app code. Đây là file quan trọng nhất.
 0010 — Thêm renewal columns vào organizations + tạo annual_updates với đủ 4 sections (A/B/C/D). Có trigger tự động set flagged_for_special_review khi section_d có bất kỳ true nào.
+0011 — Thêm draft_responses JSONB vào assessments để tách biệt auto-save (PATCH) khỏi responses chính (submit).
+0012 — Tạo org_claims với status enum, email_token và UNIQUE (org_id, user_id). Prerequisite cho claim workflow /api/v1/orgs/{id}/claim.
+0013 — Thêm first_approver_id + second_approver_id vào certifications, mở rộng status check để cho phép 'pending_second_approval'. Prerequisite cho two-person rule cert ★★★★★.

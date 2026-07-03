@@ -15,7 +15,7 @@ import { Card } from '../components/ui/Card'
 import { Field, Select } from '../components/ui/Field'
 import { EmptyState, ErrorState, LoadingState } from '../components/ui/States'
 import { getDashboardByProvince } from '../features/dashboard/api'
-import { getEnterprises, getEnterpriseQuick, getMapEnterprises } from '../features/enterprises/api'
+import { getEnterprises, getEnterpriseQuick, getMapEnterprises, getMapPins } from '../features/enterprises/api'
 import { getTaxonomies } from '../features/taxonomies/api'
 import type { EnterpriseFilterParams } from '../lib/api/types'
 import { formatNumber } from '../lib/utils/format'
@@ -28,18 +28,34 @@ L.Icon.Default.mergeOptions({
 
 const mapCenter: [number, number] = [16.0, 106.0]
 
+function hasActiveFilters(filters: EnterpriseFilterParams): boolean {
+  return Object.values(filters).some((v) => v !== undefined && v !== null && v !== '')
+}
+
 export function MapPage() {
   const [selectedEnterpriseId, setSelectedEnterpriseId] = useState<number | null>(null)
   const [filters, setFilters] = useState<EnterpriseFilterParams>({})
+
+  const filtersActive = hasActiveFilters(filters)
 
   const taxonomiesQuery = useQuery({
     queryKey: ['taxonomies'],
     queryFn: getTaxonomies,
   })
+
+  const pinsQuery = useQuery({
+    queryKey: ['map', 'pins'],
+    queryFn: getMapPins,
+    enabled: !filtersActive,
+    staleTime: 5 * 60 * 1000,
+  })
+
   const mapQuery = useQuery({
     queryKey: ['map', 'enterprises', filters],
     queryFn: () => getMapEnterprises(filters),
+    enabled: filtersActive,
   })
+
   const listQuery = useQuery({
     queryKey: ['enterprises', 'map-list', filters],
     queryFn: () => getEnterprises({ ...filters, page: 1, page_size: 12 }),
@@ -56,52 +72,60 @@ export function MapPage() {
 
   const taxonomyGroups = taxonomiesQuery.data?.data.taxonomies
 
-  const features = mapQuery.data?.data.features || []
-  const activeQuickId = selectedEnterpriseId || listQuery.data?.data[0]?.id || null
+  const pinMarkers: Array<{ id: number; lat: number; lng: number; label: string }> = useMemo(() => {
+    if (filtersActive) {
+      return (mapQuery.data?.data.features || []).map((f) => ({
+        id: f.properties.id,
+        lat: f.geometry.coordinates[1],
+        lng: f.geometry.coordinates[0],
+        label: f.properties.display_name,
+      }))
+    }
+    return (pinsQuery.data?.data.features || []).map((f) => ({
+      id: f.properties.id,
+      lat: f.geometry.coordinates[1],
+      lng: f.geometry.coordinates[0],
+      label: `#${f.properties.id} · ${f.properties.status}`,
+    }))
+  }, [filtersActive, pinsQuery.data, mapQuery.data])
 
+  const isMapLoading = filtersActive ? mapQuery.isLoading : pinsQuery.isLoading
+  const mapTotal = filtersActive
+    ? mapQuery.data?.meta.mappable_total ?? 0
+    : (pinsQuery.data?.meta.total ?? 0)
+
+  const activeQuickId = selectedEnterpriseId || listQuery.data?.data[0]?.id || null
   const selectableList = listQuery.data?.data || []
 
-  const disabledFilterNotes = useMemo(
-    () => [
-      'SDG layer: chưa có API map overlay thật.',
-      'Investor layer: chưa có backend support.',
-      'SE/SIB/IB classification: taxonomy có seed nhưng backend public map chưa filter theo field này.',
-      'Star rating: field có thể null, không có rating filter endpoint công khai.',
-    ],
-    [],
-  )
 
   return (
     <div className="page-stack">
       <section className="page-intro">
         <div>
           <p className="eyebrow">Impact map</p>
-          <h1>Bản đồ là core module, nhưng chỉ hiển thị geometry thật.</h1>
-          <p className="lead">
-            Dataset local hiện có doanh nghiệp, taxonomy và quick profile; tuy nhiên `mappable_total` đang bằng 0 nên page này giữ
-            đúng empty state thay vì fabricate marker.
-          </p>
+          <h1>Bản đồ doanh nghiệp tác động xã hội</h1>
+          {filtersActive && mapQuery.data ? (
+            <p className="lead">
+              {formatNumber(mapQuery.data.meta.matched_total)} tổ chức khớp bộ lọc
+              {mapTotal > 0 ? `, ${formatNumber(mapTotal)} có vị trí địa lý.` : '.'}
+            </p>
+          ) : null}
         </div>
       </section>
 
       <div className="map-viewport">
         <aside className="map-filter-panel">
           <div className="stack-md">
-            <div>
-              <h3>Bộ lọc</h3>
-              <p className="muted">Chỉ dùng taxonomy code mà backend public routes hiện support.</p>
-            </div>
+            <h3>Bộ lọc</h3>
 
             <Field label="Province">
               <Select
                 value={filters.province || ''}
-                onChange={(event) => setFilters((current) => ({ ...current, province: event.target.value || undefined }))}
+                onChange={(e) => setFilters((c) => ({ ...c, province: e.target.value || undefined }))}
               >
                 <option value="">Tất cả tỉnh thành</option>
                 {taxonomyGroups?.provinces?.map((item) => (
-                  <option key={item.code} value={item.code}>
-                    {item.display_name}
-                  </option>
+                  <option key={item.code} value={item.code}>{item.display_name}</option>
                 ))}
               </Select>
             </Field>
@@ -109,18 +133,11 @@ export function MapPage() {
             <Field label="Organization type">
               <Select
                 value={filters.organizationType || ''}
-                onChange={(event) =>
-                  setFilters((current) => ({
-                    ...current,
-                    organizationType: event.target.value || undefined,
-                  }))
-                }
+                onChange={(e) => setFilters((c) => ({ ...c, organizationType: e.target.value || undefined }))}
               >
                 <option value="">Tất cả loại hình</option>
                 {taxonomyGroups?.organization_types?.map((item) => (
-                  <option key={item.code} value={item.code}>
-                    {item.display_name}
-                  </option>
+                  <option key={item.code} value={item.code}>{item.display_name}</option>
                 ))}
               </Select>
             </Field>
@@ -128,18 +145,11 @@ export function MapPage() {
             <Field label="Primary sector">
               <Select
                 value={filters.primaryIndustrySector || ''}
-                onChange={(event) =>
-                  setFilters((current) => ({
-                    ...current,
-                    primaryIndustrySector: event.target.value || undefined,
-                  }))
-                }
+                onChange={(e) => setFilters((c) => ({ ...c, primaryIndustrySector: e.target.value || undefined }))}
               >
                 <option value="">Tất cả lĩnh vực</option>
                 {taxonomyGroups?.industry_sectors?.map((item) => (
-                  <option key={item.code} value={item.code}>
-                    {item.display_name}
-                  </option>
+                  <option key={item.code} value={item.code}>{item.display_name}</option>
                 ))}
               </Select>
             </Field>
@@ -147,29 +157,21 @@ export function MapPage() {
             <Field label="Operational status">
               <Select
                 value={filters.operationalStatus || ''}
-                onChange={(event) =>
-                  setFilters((current) => ({
-                    ...current,
-                    operationalStatus: event.target.value || undefined,
-                  }))
-                }
+                onChange={(e) => setFilters((c) => ({ ...c, operationalStatus: e.target.value || undefined }))}
               >
                 <option value="">Tất cả trạng thái</option>
                 {taxonomyGroups?.operational_statuses?.map((item) => (
-                  <option key={item.code} value={item.code}>
-                    {item.display_name}
-                  </option>
+                  <option key={item.code} value={item.code}>{item.display_name}</option>
                 ))}
               </Select>
             </Field>
 
-            <div className="disabled-filter-list">
-              {disabledFilterNotes.map((note) => (
-                <div key={note} className="disabled-filter-item">
-                  {note}
-                </div>
-              ))}
-            </div>
+            {filtersActive && (
+              <Button variant="ghost" onClick={() => setFilters({})}>
+                Xoá tất cả filter
+              </Button>
+            )}
+
           </div>
         </aside>
 
@@ -179,33 +181,25 @@ export function MapPage() {
               attribution='&copy; OpenStreetMap contributors'
               url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
             />
-            {features.map((feature) => (
+            {pinMarkers.map((pin) => (
               <Marker
-                key={feature.properties.id}
-                position={[feature.geometry.coordinates[1], feature.geometry.coordinates[0]]}
-                eventHandlers={{
-                  click: () => setSelectedEnterpriseId(feature.properties.id),
-                }}
+                key={pin.id}
+                position={[pin.lat, pin.lng]}
+                eventHandlers={{ click: () => setSelectedEnterpriseId(pin.id) }}
               >
                 <Popup>
-                  <strong>{feature.properties.display_name}</strong>
-                  <br />
-                  {feature.properties.province?.display_name || 'Đang cập nhật địa bàn'}
+                  <strong>{pin.label}</strong>
                 </Popup>
               </Marker>
             ))}
           </MapContainer>
 
-          {!mapQuery.isLoading && !features.length ? (
+          {!isMapLoading && pinMarkers.length === 0 && (
             <div className="map-overlay-note">
-              <p className="eyebrow">Map empty by contract</p>
-              <h3>Chưa có geometry hợp lệ để render marker.</h3>
-              <p>
-                Backend trả `matched_total` {formatNumber(mapQuery.data?.meta.matched_total || 0)} nhưng `mappable_total` bằng{' '}
-                {formatNumber(mapQuery.data?.meta.mappable_total || 0)}.
-              </p>
+              <h3>Chưa có tổ chức nào có vị trí địa lý để hiển thị.</h3>
+              <p>Thử thay đổi bộ lọc hoặc quay lại sau khi dữ liệu được cập nhật.</p>
             </div>
-          ) : null}
+          )}
         </div>
 
         <aside className="map-right-panel">

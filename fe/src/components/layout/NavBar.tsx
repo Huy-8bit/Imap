@@ -20,7 +20,7 @@ export function NavBar() {
     <header className="site-header">
       <div className="brand-lockup">
         <NavLink to="/" className="brand-mark">
-          <img src={logoImg} alt="iMap Vietnam" style={{ height: 40 }} />
+          <img src={logoImg} alt="iMap Vietnam" style={{ height: 34 }} />
         </NavLink>
         <p className="brand-subtitle">Impact Economy Digital Hub</p>
       </div>

@@ -4,6 +4,7 @@ from fastapi import FastAPI
 
 from backend.libs.database import get_postgresql, get_redis, setup_postgresql, setup_redis
 from backend.libs.http import build_lifespan, create_app
+from backend.libs.http.rate_limit import register_rate_limit
 from backend.libs.logs import setup_logging
 
 from .config import config
@@ -60,6 +61,13 @@ def create_service() -> FastAPI:
     )
 
     app.include_router(api_router, prefix="/api")
+
+    register_rate_limit(
+        app,
+        public_limit=config.rate_limit_public,
+        authenticated_limit=config.rate_limit_authenticated,
+        window_seconds=config.rate_limit_window_seconds,
+    )
 
     return app
 

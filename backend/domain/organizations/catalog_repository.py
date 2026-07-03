@@ -216,6 +216,25 @@ class OrganizationCatalogRepository:
         )
         return rows, total
 
+    def get_map_pins(self) -> list[dict]:
+        return self._db.fetch_all(
+            f"""
+            SELECT
+                ST_AsGeoJSON(ol.geom)::jsonb AS geometry,
+                o.id,
+                o.status::text AS status,
+                -- ai_tags[1] assumes insertion order = priority order;
+                -- revisit once AI Scoring Service (MVP 1) produces real multi-tag data
+                CASE WHEN array_length(o.ai_tags, 1) IS NULL THEN NULL
+                     ELSE o.ai_tags[1]
+                END AS primary_ai_tag
+            FROM organizations o
+            INNER JOIN organization_locations ol ON ol.organization_id = o.id
+            WHERE {MAPPABLE_GEOMETRY_SQL}
+            ORDER BY o.id ASC
+            """
+        )
+
     def get_enterprise_map(
         self,
         params: EnterpriseMapParams,
@@ -258,6 +277,43 @@ class OrganizationCatalogRepository:
             where_params,
         )
         return rows, matched_total, mappable_total
+
+    def get_insights_summary(self, params: StatsOverviewParams) -> dict:
+        where_sql, where_params = self._build_filter_query(params)
+        row = self._db.fetch_one(
+            f"""
+            SELECT
+                COUNT(*)::bigint AS total_organizations,
+                COUNT(*) FILTER (WHERE o.status = 'unregistered')::bigint AS unregistered_count,
+                COUNT(*) FILTER (WHERE o.status = 'registered')::bigint AS registered_count,
+                COUNT(*) FILTER (WHERE o.status = 'certified')::bigint AS certified_count,
+                COUNT(DISTINCT ol.province_id)::bigint AS provinces_count,
+                COUNT(*) FILTER (WHERE o.has_positive_social_impact IS TRUE)::bigint AS social_impact_organizations,
+                COUNT(*) FILTER (
+                    WHERE EXISTS (
+                        SELECT 1
+                        FROM organization_environmental_impacts oei
+                        WHERE oei.organization_id = o.id
+                    )
+                )::bigint AS environmental_impact_organizations,
+                COUNT(*) FILTER (
+                    WHERE {MAPPABLE_GEOMETRY_SQL}
+                )::bigint AS mappable_organizations
+            {FILTER_FROM_SQL}
+            WHERE {where_sql}
+            """,
+            where_params,
+        )
+        return row or {
+            "total_organizations": 0,
+            "unregistered_count": 0,
+            "registered_count": 0,
+            "certified_count": 0,
+            "provinces_count": 0,
+            "social_impact_organizations": 0,
+            "environmental_impact_organizations": 0,
+            "mappable_organizations": 0,
+        }
 
     def get_stats_overview(self, params: StatsOverviewParams) -> dict:
         where_sql, where_params = self._build_filter_query(params)
@@ -391,6 +447,74 @@ class OrganizationCatalogRepository:
             query_params,
         )
         return rows, matched_total
+
+    def get_org_full(self, organization_id: int) -> dict | None:
+        return self._db.fetch_one(
+            f"""
+            SELECT
+                o.id,
+                o.slug,
+                o.status::text AS status,
+                coalesce(o.trade_name, o.registered_name) AS display_name,
+                o.trade_name,
+                o.registered_name,
+                o.founded_year,
+                o.tax_code,
+                coalesce(o.ai_tags, '{{}}') AS ai_tags,
+                coalesce(o.sdg_numbers, '{{}}') AS sdg_numbers,
+                o.ai_composite_score,
+                o.has_positive_social_impact,
+                o.star_rating,
+                o.certified_at,
+                o.expires_at,
+                {self._taxonomy_json("p")} AS province,
+                ol.ward_name,
+                ol.full_address,
+                ol.latitude,
+                ol.longitude,
+                {self._taxonomy_json("ot")} AS organization_type,
+                {self._taxonomy_json("pis")} AS primary_industry_sector,
+                coalesce(env.environmental_impact_areas, '[]'::jsonb) AS environmental_impact_areas,
+                oc.website,
+                ars.submission_id,
+                ars.overall_score AS assessment_overall_score,
+                ars.pillars_json,
+                ars.scoring_version,
+                ars.created_at AS assessment_scored_at
+            FROM organizations o
+            LEFT JOIN organization_locations ol ON ol.organization_id = o.id
+            LEFT JOIN organization_contacts oc ON oc.organization_id = o.id
+            LEFT JOIN provinces p ON p.id = ol.province_id
+            LEFT JOIN organization_types ot ON ot.id = o.organization_type_id
+            LEFT JOIN industry_sectors pis ON pis.id = o.primary_industry_sector_id
+            LEFT JOIN LATERAL (
+                SELECT
+                    coalesce(
+                        jsonb_agg(
+                            jsonb_build_object(
+                                'id', eia.id,
+                                'code', eia.code,
+                                'display_name', eia.display_name
+                            )
+                            ORDER BY oei.sort_order ASC
+                        ),
+                        '[]'::jsonb
+                    ) AS environmental_impact_areas
+                FROM organization_environmental_impacts oei
+                JOIN environmental_impact_areas eia ON eia.id = oei.environmental_impact_area_id
+                WHERE oei.organization_id = o.id
+            ) env ON TRUE
+            LEFT JOIN LATERAL (
+                SELECT submission_id, overall_score, pillars_json, scoring_version, created_at
+                FROM assessment_result_snapshots
+                WHERE organization_id = o.id
+                ORDER BY created_at DESC, id DESC
+                LIMIT 1
+            ) ars ON TRUE
+            WHERE o.id = %s
+            """,
+            (organization_id,),
+        )
 
     def get_enterprise_quick(self, organization_id: int) -> dict | None:
         return self._db.fetch_one(

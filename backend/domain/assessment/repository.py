@@ -216,6 +216,34 @@ class AssessmentRepository:
             (organization_id,),
         )
 
+    def get_assessment_by_id(self, assessment_id: int) -> dict | None:
+        return self._db.fetch_one(
+            """
+            SELECT
+                id, org_id, module::text AS module, version, year, status::text AS status,
+                responses, draft_responses, domain_scores,
+                raw_score, final_score, maturity_level,
+                review_notes, submitted_at, approved_at, created_at, updated_at
+            FROM assessments
+            WHERE id = %s
+            """,
+            (assessment_id,),
+        )
+
+    def save_draft(self, assessment_id: int, draft_responses: dict) -> bool:
+        """UPDATE draft_responses khi status == 'draft'. Trả True nếu cập nhật thành công."""
+        row = self._db.fetch_one(
+            """
+            UPDATE assessments
+            SET draft_responses = %s::jsonb
+            WHERE id = %s
+              AND status = 'draft'
+            RETURNING id
+            """,
+            (json.dumps(draft_responses, ensure_ascii=False), assessment_id),
+        )
+        return row is not None
+
     def list_history(self, organization_id: int, *, page: int = 1, page_size: int = 20) -> tuple[list[dict], int]:
         query_params = {
             "organization_id": organization_id,

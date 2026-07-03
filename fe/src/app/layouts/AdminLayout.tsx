@@ -1,6 +1,8 @@
 import { NavLink, Outlet } from 'react-router-dom'
 
 const adminLinks = [
+  { to: '/admin/queue', label: 'Queue' },
+  { to: '/admin/score', label: 'Score & Cert' },
   { to: '/admin/news', label: 'News' },
   { to: '/admin/reports', label: 'Reports' },
   { to: '/admin/certifications', label: 'Certifications' },
@@ -14,11 +16,7 @@ export function AdminLayout() {
       <section className="admin-hero">
         <div>
           <p className="eyebrow">Admin workspace</p>
-          <h1>Write endpoints and internal review flows</h1>
-          <p className="lead">
-            Workspace này nối trực tiếp vào các endpoint admin đã có. Phần chưa có admin list endpoint
-            được xử lý bằng fetch theo enterprise hoặc create-only flow.
-          </p>
+          <h1>Write endpoints và internal review flows</h1>
         </div>
       </section>
 

@@ -96,3 +96,33 @@ class AssessmentHistoryEnvelope(BaseModel):
     data: list[AssessmentSubmissionHistoryItem]
     meta: PaginationMeta
     error: str | None = None
+
+
+class AssessmentDetailData(BaseModel):
+    id: int
+    org_id: int
+    module: str
+    version: str
+    year: int
+    status: str
+    responses: dict = Field(default_factory=dict)
+    draft_responses: dict = Field(default_factory=dict)
+    domain_scores: dict = Field(default_factory=dict)
+    raw_score: float | None = None
+    final_score: float | None = None
+    maturity_level: int | None = None
+    review_notes: str | None = None
+    submitted_at: datetime | None = None
+    approved_at: datetime | None = None
+    created_at: datetime
+    updated_at: datetime
+
+
+class AssessmentDetailEnvelope(BaseModel):
+    data: AssessmentDetailData
+    meta: dict | None = None
+    error: str | None = None
+
+
+class AssessmentDraftInput(BaseModel):
+    draft_responses: dict = Field(default_factory=dict)

@@ -24,6 +24,7 @@ import {
   getDashboardBySector,
   getDashboardGrowth,
   getDashboardImpactFlows,
+  getInsightsSummary,
   getStatsOverview,
 } from '../features/dashboard/api'
 import { getTaxonomies } from '../features/taxonomies/api'
@@ -38,6 +39,10 @@ export function DashboardPage() {
   const taxonomiesQuery = useQuery({
     queryKey: ['taxonomies', 'dashboard'],
     queryFn: getTaxonomies,
+  })
+  const insightsQuery = useQuery({
+    queryKey: ['insights', 'summary', filters],
+    queryFn: () => getInsightsSummary(filters),
   })
   const overviewQuery = useQuery({
     queryKey: ['stats', 'overview', filters],
@@ -71,10 +76,7 @@ export function DashboardPage() {
       <section className="page-intro">
         <div>
           <p className="eyebrow">Impact dashboard</p>
-          <h1>Aggregate analytics bám theo endpoint thật.</h1>
-          <p className="lead">
-            Province, sector, organization type, growth, và impact flows đều đi trực tiếp qua backend aggregates và cache semantics hiện có.
-          </p>
+          <h1>Tổng quan dữ liệu tác động</h1>
         </div>
         <Card className="filter-card filter-card-inline">
           <Field label="Province">
@@ -126,7 +128,22 @@ export function DashboardPage() {
         </Card>
       </section>
 
-      {overviewQuery.isLoading ? (
+      {insightsQuery.data ? (
+        <>
+          <div className="stats-grid">
+            <StatCard label="Tổng hồ sơ" value={insightsQuery.data.data.total_organizations} />
+            <StatCard label="Chưa đăng ký" value={insightsQuery.data.data.unregistered_count} />
+            <StatCard label="Đã đăng ký" value={insightsQuery.data.data.registered_count} accent="green" />
+            <StatCard label="Certified" value={insightsQuery.data.data.certified_count} accent="gold" />
+          </div>
+          <div className="stats-grid">
+            <StatCard label="Tác động xã hội" value={insightsQuery.data.data.social_impact_organizations} />
+            <StatCard label="Tác động môi trường" value={insightsQuery.data.data.environmental_impact_organizations} accent="green" />
+            <StatCard label="Có vị trí địa lý" value={insightsQuery.data.data.mappable_organizations} />
+            <StatCard label="Tỉnh thành" value={insightsQuery.data.data.provinces_count} />
+          </div>
+        </>
+      ) : overviewQuery.isLoading ? (
         <LoadingState />
       ) : overviewQuery.isError ? (
         <ErrorState description="Không tải được overview." onRetry={() => void overviewQuery.refetch()} />
@@ -210,9 +227,6 @@ export function DashboardPage() {
           <div>
             <p className="eyebrow">Impact flows</p>
             <h2>Ma trận tín hiệu theo sector × impact area × geography</h2>
-            <p className="section-description">
-              Visualization hiện dùng raw cohort signals; không bịa thêm analytics ngoài contract backend.
-            </p>
           </div>
         </div>
         {flowsQuery.isLoading ? (
@@ -241,18 +255,6 @@ export function DashboardPage() {
         )}
       </Card>
 
-      <Card>
-        <div className="section-header compact">
-          <div>
-            <p className="eyebrow">Pillar analytics</p>
-            <h2>Đang cập nhật</h2>
-          </div>
-        </div>
-        <EmptyState
-          title="Chưa có endpoint pillar analytics"
-          description="Docs có nhắc đến pillar analytics, nhưng backend sprint hiện không expose aggregate endpoint business-final cho 5 pillars."
-        />
-      </Card>
     </div>
   )
 }
