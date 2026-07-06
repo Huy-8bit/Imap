@@ -158,10 +158,38 @@ docker compose --env-file devops/.env -f devops/docker-compose.yml up --build -d
 
 Mặc định server deploy:
 
-- Frontend public: `http://103.1.236.121`
+- Frontend Docker bind host-local: `127.0.0.1:8080`
 - Backend chỉ bind host-local: `127.0.0.1:8010`
 - PostgreSQL/Redis chỉ bind host-local để tránh mở DB/cache ra internet
-- nginx frontend proxy `/api/*` tới backend container, nên FE gọi API cùng origin
+- nginx server trên host giữ port `80` và proxy vào frontend Docker ở `127.0.0.1:8080`
+- nginx frontend container proxy `/api/*` tới backend container, nên FE gọi API cùng origin
+
+Nginx host config mẫu nằm ở `devops/nginx-imap.conf.example`:
+
+```nginx
+server {
+  listen 80;
+  server_name 103.1.236.121;
+
+  location / {
+    proxy_pass http://127.0.0.1:8080;
+    proxy_http_version 1.1;
+    proxy_set_header Host $host;
+    proxy_set_header X-Real-IP $remote_addr;
+    proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+    proxy_set_header X-Forwarded-Proto $scheme;
+  }
+}
+```
+
+Apply trên server:
+
+```bash
+sudo cp devops/nginx-imap.conf.example /etc/nginx/sites-available/imap
+sudo ln -sf /etc/nginx/sites-available/imap /etc/nginx/sites-enabled/imap
+sudo nginx -t
+sudo systemctl reload nginx
+```
 
 Kiểm tra:
 
