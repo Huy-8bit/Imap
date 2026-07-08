@@ -136,7 +136,7 @@ Logs backend:
 docker compose --env-file devops/.env -f devops/docker-compose.yml logs -f backend
 ```
 
-## Deploy server `103.1.236.121`
+## Deploy server `103.1.236.121` (API tại `api.imapvietnam.org`)
 
 Tạo env từ mẫu server:
 
@@ -162,9 +162,9 @@ Mặc định server deploy:
 - Backend chỉ bind host-local: `127.0.0.1:8010`
 - PostgreSQL/Redis chỉ bind host-local để tránh mở DB/cache ra internet
 - nginx server trên host giữ port `80` và proxy vào frontend Docker ở `127.0.0.1:8080`
-- nginx frontend container proxy `/api/*` tới backend container, nên FE gọi API cùng origin
+- FE **không** gọi thẳng vào IP backend nữa. FE được build với `VITE_API_BASE_URL=https://api.imapvietnam.org`, và nginx host có thêm server block riêng cho `api.imapvietnam.org` proxy thẳng tới backend container ở `127.0.0.1:8010` (bỏ qua block `/api/*` bên trong container FE)
 
-Nginx host config mẫu nằm ở `devops/nginx-imap.conf.example`:
+Nginx host config mẫu nằm ở `devops/nginx-imap.conf.example` (gồm 3 server block: FE trên IP, redirect HTTP→HTTPS cho `api.imapvietnam.org`, và HTTPS proxy thẳng tới backend):
 
 ```nginx
 server {
@@ -173,6 +173,36 @@ server {
 
   location / {
     proxy_pass http://127.0.0.1:8080;
+    proxy_http_version 1.1;
+    proxy_set_header Host $host;
+    proxy_set_header X-Real-IP $remote_addr;
+    proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+    proxy_set_header X-Forwarded-Proto $scheme;
+  }
+}
+
+server {
+  listen 80;
+  server_name api.imapvietnam.org;
+
+  location /.well-known/acme-challenge/ {
+    root /var/www/certbot;
+  }
+
+  location / {
+    return 301 https://$host$request_uri;
+  }
+}
+
+server {
+  listen 443 ssl http2;
+  server_name api.imapvietnam.org;
+
+  ssl_certificate     /etc/letsencrypt/live/api.imapvietnam.org/fullchain.pem;
+  ssl_certificate_key /etc/letsencrypt/live/api.imapvietnam.org/privkey.pem;
+
+  location / {
+    proxy_pass http://127.0.0.1:8010;
     proxy_http_version 1.1;
     proxy_set_header Host $host;
     proxy_set_header X-Real-IP $remote_addr;
@@ -191,14 +221,21 @@ sudo nginx -t
 sudo systemctl reload nginx
 ```
 
+Trước khi bật block HTTPS, phải trỏ DNS `api.imapvietnam.org` về `103.1.236.121` rồi cấp chứng chỉ, ví dụ:
+
+```bash
+sudo certbot certonly --webroot -w /var/www/certbot -d api.imapvietnam.org
+```
+
 Kiểm tra:
 
 ```bash
-curl http://103.1.236.121/api/health
+curl http://103.1.236.121/
+curl https://api.imapvietnam.org/api/health
 curl http://127.0.0.1:8010/api/health
 ```
 
-Nếu server có firewall, mở inbound TCP `80`. Chỉ mở `8010`, `5433`, `6379` khi có nhu cầu vận hành riêng và đã giới hạn IP truy cập.
+Nếu server có firewall, mở inbound TCP `80` và `443`. Chỉ mở `8010`, `5433`, `6379` khi có nhu cầu vận hành riêng và đã giới hạn IP truy cập.
 
 ### 3. Chạy backend bằng Python local
 

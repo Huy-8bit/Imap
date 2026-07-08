@@ -25,7 +25,9 @@ Mặc định app gọi backend tại:
 
 Khi build bằng Docker cho server, biến này được truyền từ `devops/.env.server.example`:
 
-- `VITE_API_BASE_URL=http://103.1.236.121`
+- `VITE_API_BASE_URL=https://api.imapvietnam.org`
+
+FE gọi API qua domain `api.imapvietnam.org`, không gọi thẳng vào IP backend.
 
 Để bật Google Sign-In, tạo OAuth Web Client ID trong Google Cloud Console rồi điền cùng một client ID vào:
 
@@ -52,9 +54,10 @@ npm run build
 
 ## Docker deploy
 
-Compose ở `devops/docker-compose.yml` build `fe/Dockerfile`, serve static bằng nginx ở port 80 và proxy `/api` về backend nội bộ. Với env server hiện tại, frontend public là:
+Compose ở `devops/docker-compose.yml` build `fe/Dockerfile`, serve static bằng nginx ở port 80. Với env server hiện tại:
 
-- `http://103.1.236.121`
+- Frontend public: `http://103.1.236.121`
+- API public: `https://api.imapvietnam.org` (nginx host proxy thẳng domain này tới backend container, xem `README.md` phần deploy)
 
 ## Ghi chú
 
