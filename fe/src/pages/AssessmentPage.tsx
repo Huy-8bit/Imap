@@ -204,14 +204,14 @@ export function AssessmentPage() {
 }
 
 function EnterpriseSelfRegistrationPanel() {
-  const { user, reloadProfile } = useAuth()
+  const { reloadProfile } = useAuth()
   const [form, setForm] = useState<OrganizationSelfRegistrationPayload>(() => ({
     ...initialSelfRegistrationForm,
     general: {
       ...initialSelfRegistrationForm.general,
       contacts: {
         ...initialSelfRegistrationForm.general.contacts,
-        email: user?.email || '',
+        email: 'admin@imap.local',
       },
     },
   }))
