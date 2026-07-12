@@ -10,7 +10,7 @@ from backend.service.config import config
 
 def main() -> None:
     parser = argparse.ArgumentParser(description="Create or promote an Admin user.")
-    parser.add_argument("--email", default="admin@imap.local", help="Admin email address")
+    parser.add_argument("--email", default="admin@imap.prod", help="Admin email address")
     parser.add_argument("--password", default="Admin1234!", help="Admin password")
     parser.add_argument("--full-name", default="System Administrator", help="Admin full name")
     args = parser.parse_args()
