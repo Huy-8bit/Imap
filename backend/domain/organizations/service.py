@@ -377,6 +377,11 @@ class OrganizationAdminService:
     ) -> OrganizationImportEnvelope:
         AuthService.ensure_roles(current_user, ["admin"])
         records = [record.model_dump(by_alias=True, mode="json") for record in payload.records]
+        if current_user.email != "admin@imap.local" and len(records) > 1:
+            raise AppError(
+                "Only the primary admin account (admin@imap.local) is allowed to import multiple enterprises at once.",
+                status_code=403
+            )
         summary = self._import_service.import_records(
             records,
             source_name=payload.source_name or self._build_source_name(current_user, suffix="bulk"),
@@ -401,6 +406,12 @@ class OrganizationAdminService:
             records = parse_organizations_excel(file_obj)
         except Exception as exc:
             raise AppError(f"Failed to parse Excel file: {exc}", status_code=400)
+
+        if current_user.email != "admin@imap.local" and len(records) > 1:
+            raise AppError(
+                "Only the primary admin account (admin@imap.local) is allowed to import multiple enterprises at once.",
+                status_code=403
+            )
 
         summary = self._import_service.import_records(
             records,

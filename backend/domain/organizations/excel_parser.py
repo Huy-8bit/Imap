@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-import io
+import re
 from typing import Any, BinaryIO
 import openpyxl
 
@@ -35,6 +35,13 @@ def parse_organizations_excel(file_obj: BinaryIO) -> list[dict[str, Any]]:
             val = sheet.cell(row=row, column=col).value
             return clean_text(val)
 
+        def get_taxonomy_str(col: int) -> str | None:
+            val = sheet.cell(row=row, column=col).value
+            cleaned = clean_text(val)
+            if cleaned:
+                cleaned = re.sub(r"^\d+\.\s*", "", cleaned)
+            return cleaned
+
         def get_year(col: int) -> int | None:
             val = sheet.cell(row=row, column=col).value
             if val is None:
@@ -62,7 +69,7 @@ def parse_organizations_excel(file_obj: BinaryIO) -> list[dict[str, Any]]:
         # environmental impact areas (Col 17 to 20)
         env_areas: list[str | None] = []
         for col in [17, 18, 19, 20]:
-            val = get_str(col)
+            val = get_taxonomy_str(col)
             if val:
                 env_areas.append(val)
         while len(env_areas) < 4:
@@ -71,7 +78,7 @@ def parse_organizations_excel(file_obj: BinaryIO) -> list[dict[str, Any]]:
         # other industry sectors (Col 14 to 16)
         other_sectors: list[str | None] = []
         for col in [14, 15, 16]:
-            val = get_str(col)
+            val = get_taxonomy_str(col)
             other_sectors.append(val)
 
         record = {
@@ -82,7 +89,7 @@ def parse_organizations_excel(file_obj: BinaryIO) -> list[dict[str, Any]]:
                 "foundedYear": get_year(3),
                 "taxCode": get_str(4),
                 "location": {
-                    "province": get_str(5),
+                    "province": get_taxonomy_str(5),
                     "ward": get_str(6)
                 },
                 "contacts": {
@@ -90,17 +97,17 @@ def parse_organizations_excel(file_obj: BinaryIO) -> list[dict[str, Any]]:
                     "email": email,
                     "phone": phone
                 },
-                "operationalStatus": get_str(10),
+                "operationalStatus": get_taxonomy_str(10),
                 "closedYear": get_year(11)
             },
             "classification": {
-                "organizationType": get_str(12),
-                "primaryIndustrySector": get_str(13),
+                "organizationType": get_taxonomy_str(12),
+                "primaryIndustrySector": get_taxonomy_str(13),
                 "otherIndustrySectors": other_sectors,
                 "environmentalImpactAreas": env_areas,
                 "hasPositiveSocialImpact": has_social_impact,
-                "primaryProductType": get_str(22),
-                "otherProductType": get_str(23)
+                "primaryProductType": get_taxonomy_str(22),
+                "otherProductType": get_taxonomy_str(23)
             }
         }
         records.append(record)

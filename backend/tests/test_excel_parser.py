@@ -29,29 +29,29 @@ class ExcelParserTests(unittest.TestCase):
         self.assertEqual(first_record["general"]["registeredName"], "TỔNG CÔNG TY CÔNG NGHIỆP MỎ VIỆT BẮC TKV - CTCP")
         self.assertEqual(first_record["general"]["foundedYear"], 1998)
         self.assertEqual(first_record["general"]["taxCode"], "0100100015")
-        self.assertEqual(first_record["general"]["location"]["province"], "10. TP. Hà Nội")
+        self.assertEqual(first_record["general"]["location"]["province"], "TP. Hà Nội")
         self.assertEqual(first_record["general"]["location"]["ward"], "P. Phương Liệt")
         self.assertEqual(first_record["general"]["contacts"]["phone"], "02436647515")
-        self.assertEqual(first_record["general"]["operationalStatus"], "1. Đang hoạt động")
+        self.assertEqual(first_record["general"]["operationalStatus"], "Đang hoạt động")
         self.assertIsNone(first_record["general"]["closedYear"])
 
         # Classification assertions
-        self.assertEqual(first_record["classification"]["organizationType"], "1. Doanh nghiệp nhà nước")
-        self.assertEqual(first_record["classification"]["primaryIndustrySector"], "1. NÔNG NGHIỆP, LÂM NGHIỆP VÀ THUỶ SẢN")
+        self.assertEqual(first_record["classification"]["organizationType"], "Doanh nghiệp nhà nước")
+        self.assertEqual(first_record["classification"]["primaryIndustrySector"], "NÔNG NGHIỆP, LÂM NGHIỆP VÀ THUỶ SẢN")
         self.assertEqual(first_record["classification"]["otherIndustrySectors"], [
-            "7. BÁN BUÔN VÀ BÁN LẺ",
-            "6. XÂY DỰNG",
-            "3. CÔNG NGHIỆP CHẾ BIẾN, CHẾ TẠO"
+            "BÁN BUÔN VÀ BÁN LẺ",
+            "XÂY DỰNG",
+            "CÔNG NGHIỆP CHẾ BIẾN, CHẾ TẠO"
         ])
         self.assertEqual(first_record["classification"]["environmentalImpactAreas"], [
-            "9. Không có tác động môi trường",
+            "Không có tác động môi trường",
             None,
             None,
             None
         ])
         self.assertTrue(first_record["classification"]["hasPositiveSocialImpact"])
-        self.assertEqual(first_record["classification"]["primaryProductType"], "1. Sản phẩm hữu hình")
-        self.assertEqual(first_record["classification"]["otherProductType"], "2. Sản phẩm dịch vụ")
+        self.assertEqual(first_record["classification"]["primaryProductType"], "Sản phẩm hữu hình")
+        self.assertEqual(first_record["classification"]["otherProductType"], "Sản phẩm dịch vụ")
 
 
 if __name__ == "__main__":
