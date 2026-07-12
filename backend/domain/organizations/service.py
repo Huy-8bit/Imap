@@ -3,7 +3,7 @@ from __future__ import annotations
 import hashlib
 import json
 import logging
-from typing import TypeVar
+from typing import TypeVar, BinaryIO
 
 from pydantic import BaseModel, ValidationError
 
@@ -15,6 +15,7 @@ from backend.libs.http.errors import AppError, ConflictError, NotFoundError
 from .catalog_repository import OrganizationCatalogRepository
 from .importer import OrganizationImportService, summary_to_dict
 from .repository import OrganizationImportRepository
+from .excel_parser import parse_organizations_excel
 from .schemas import (
     DashboardBreakdownDimension,
     DashboardBreakdownMeta,
@@ -382,6 +383,31 @@ class OrganizationAdminService:
             source_path=self.BULK_IMPORT_SOURCE_PATH,
             source_type="api",
             dry_run=payload.dry_run,
+        )
+        return OrganizationImportEnvelope(
+            data=OrganizationImportSummaryData.model_validate(summary_to_dict(summary))
+        )
+
+    def import_enterprises_excel(
+        self,
+        file_obj: BinaryIO,
+        *,
+        source_name: str | None = None,
+        dry_run: bool = False,
+        current_user: AuthenticatedUser,
+    ) -> OrganizationImportEnvelope:
+        AuthService.ensure_roles(current_user, ["admin"])
+        try:
+            records = parse_organizations_excel(file_obj)
+        except Exception as exc:
+            raise AppError(f"Failed to parse Excel file: {exc}", status_code=400)
+
+        summary = self._import_service.import_records(
+            records,
+            source_name=source_name or self._build_source_name(current_user, suffix="excel"),
+            source_path="uploaded_file.xlsx",
+            source_type="excel",
+            dry_run=dry_run,
         )
         return OrganizationImportEnvelope(
             data=OrganizationImportSummaryData.model_validate(summary_to_dict(summary))
