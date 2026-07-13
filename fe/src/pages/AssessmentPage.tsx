@@ -15,6 +15,7 @@ import {
 import { selfRegisterEnterprise } from '../features/enterprises/api'
 import { getTaxonomies } from '../features/taxonomies/api'
 import { useAuth } from '../lib/auth/auth'
+import { apiClient } from '../lib/api/http'
 import type { AssessmentAnswerInput, AssessmentQuestionItem, OrganizationSelfRegistrationPayload } from '../lib/api/types'
 import { formatDate } from '../lib/utils/format'
 
@@ -47,7 +48,7 @@ const initialSelfRegistrationForm: OrganizationSelfRegistrationPayload = {
 }
 
 export function AssessmentPage() {
-  const { user } = useAuth()
+  const { user, isAdmin } = useAuth()
   const enterpriseId = user?.organization?.id || null
   const [notes, setNotes] = useState('')
   const [answers, setAnswers] = useState<Record<number, AssessmentAnswerInput>>({})
@@ -83,6 +84,10 @@ export function AssessmentPage() {
     () => (questionsQuery.data?.data || []).reduce((count, group) => count + group.questions.length, 0),
     [questionsQuery.data?.data],
   )
+
+  if (isAdmin) {
+    return <AdminExcelUploadPanel />
+  }
 
   if (enterpriseId === null) {
     return <EnterpriseSelfRegistrationPanel />
@@ -203,15 +208,206 @@ export function AssessmentPage() {
   )
 }
 
+function AdminExcelUploadPanel() {
+  const [file, setFile] = useState<File | null>(null)
+  const [dryRun, setDryRun] = useState(false)
+  const [isDragOver, setIsDragOver] = useState(false)
+  const [isUploading, setIsUploading] = useState(false)
+  const [result, setResult] = useState<import('../lib/api/types').OrganizationImportSummaryData | null>(null)
+  const [error, setError] = useState<string | null>(null)
+
+  const handleDragOver = (e: React.DragEvent) => {
+    e.preventDefault()
+    setIsDragOver(true)
+  }
+
+  const handleDragLeave = () => {
+    setIsDragOver(false)
+  }
+
+  const handleDrop = (e: React.DragEvent) => {
+    e.preventDefault()
+    setIsDragOver(false)
+    const droppedFile = e.dataTransfer.files[0]
+    if (droppedFile && (droppedFile.name.endsWith('.xlsx') || droppedFile.type === 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet')) {
+      setFile(droppedFile)
+      setError(null)
+    } else {
+      setError('Vui lòng chọn hoặc kéo thả file Excel định dạng .xlsx')
+    }
+  }
+
+  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const selectedFile = e.target.files?.[0]
+    if (selectedFile) {
+      setFile(selectedFile)
+      setError(null)
+    }
+  }
+
+  const handleUpload = async () => {
+    if (!file) return
+    setIsUploading(true)
+    setResult(null)
+    setError(null)
+
+    const formData = new FormData()
+    formData.append('file', file)
+    formData.append('dryRun', String(dryRun))
+
+    try {
+      const response = await apiClient.post<import('../lib/api/types').OrganizationImportSummaryData>(
+        '/api/v1/orgs/import-excel',
+        formData
+      )
+      setResult(response.data)
+      setFile(null)
+    } catch (err: any) {
+      setError(err?.response?.data?.message || err?.message || 'Có lỗi xảy ra khi import file.')
+    } finally {
+      setIsUploading(false)
+    }
+  }
+
+  return (
+    <div className="page-stack">
+      <section className="page-intro">
+        <div>
+          <p className="eyebrow">Admin workspace</p>
+          <h1>Import doanh nghiệp từ file Excel</h1>
+          <p className="lead">Hệ thống tự động liên kết các trường thông tin chung, địa lý (tỉnh thành) và phân loại SIB.</p>
+        </div>
+      </section>
+
+      <Card>
+        <div className="stack-md">
+          <div
+            className={`state-block ${isDragOver ? 'is-active' : ''}`}
+            onDragOver={handleDragOver}
+            onDragLeave={handleDragLeave}
+            onDrop={handleDrop}
+            style={{
+              border: isDragOver ? '2px dashed var(--green)' : '2px dashed var(--line)',
+              background: isDragOver ? 'var(--green-soft)' : 'var(--surface)',
+              textAlign: 'center',
+              padding: '40px 20px',
+              borderRadius: '16px',
+              cursor: 'pointer',
+              transition: 'all 0.2s ease',
+            }}
+            onClick={() => document.getElementById('excel-file-input')?.click()}
+          >
+            <input
+              id="excel-file-input"
+              type="file"
+              accept=".xlsx"
+              style={{ display: 'none' }}
+              onChange={handleFileChange}
+            />
+            {file ? (
+              <div>
+                <p style={{ fontSize: '18px', fontWeight: 600 }}>📄 {file.name}</p>
+                <p className="muted" style={{ fontSize: '14px' }}>{(file.size / 1024).toFixed(1)} KB</p>
+              </div>
+            ) : (
+              <div>
+                <p style={{ fontSize: '18px', fontWeight: 600 }}>Kéo thả file Excel .xlsx vào đây</p>
+                <p className="muted" style={{ fontSize: '14px' }}>Hoặc click để chọn file từ máy tính</p>
+              </div>
+            )}
+          </div>
+
+          <div className="stack-inline" style={{ justifyContent: 'space-between', alignItems: 'center' }}>
+            <label className="radio-option" style={{ display: 'flex', gap: '8px', cursor: 'pointer' }}>
+              <input
+                type="checkbox"
+                checked={dryRun}
+                onChange={(e) => setDryRun(e.target.checked)}
+              />
+              <span>Chế độ Dry Run (chỉ kiểm tra lỗi dữ liệu, không lưu vào DB)</span>
+            </label>
+
+            {file && (
+              <Button onClick={handleUpload} disabled={isUploading}>
+                {isUploading ? 'Đang import...' : 'Bắt đầu import'}
+              </Button>
+            )}
+          </div>
+
+          {error && <ErrorState description={error} />}
+
+          {result && (
+            <Card style={{ background: 'var(--surface)', borderColor: 'var(--line)' }}>
+              <div className="stack-md">
+                <h3>Kết quả Import: {result.status}</h3>
+                <div className="detail-grid" style={{ gridTemplateColumns: 'repeat(auto-fit, minmax(120px, 1fr))', gap: '16px' }}>
+                  <Card style={{ textAlign: 'center', padding: '12px' }}>
+                    <p className="muted">Tổng số dòng</p>
+                    <p style={{ fontSize: '24px', fontWeight: 700 }}>{result.total_records}</p>
+                  </Card>
+                  <Card style={{ textAlign: 'center', padding: '12px' }}>
+                    <p className="muted">Thêm mới</p>
+                    <p style={{ fontSize: '24px', fontWeight: 700, color: 'var(--green-deep)' }}>{result.inserted_count}</p>
+                  </Card>
+                  <Card style={{ textAlign: 'center', padding: '12px' }}>
+                    <p className="muted">Cập nhật</p>
+                    <p style={{ fontSize: '24px', fontWeight: 700, color: 'var(--blue)' }}>{result.updated_count}</p>
+                  </Card>
+                  <Card style={{ textAlign: 'center', padding: '12px' }}>
+                    <p className="muted">Bỏ qua</p>
+                    <p style={{ fontSize: '24px', fontWeight: 700, color: 'var(--muted)' }}>{result.skipped_count}</p>
+                  </Card>
+                  <Card style={{ textAlign: 'center', padding: '12px' }}>
+                    <p className="muted">Lỗi dữ liệu</p>
+                    <p style={{ fontSize: '24px', fontWeight: 700, color: 'var(--danger)' }}>{result.error_count}</p>
+                  </Card>
+                </div>
+
+                {result.errors && result.errors.length > 0 && (
+                  <div className="stack-sm" style={{ marginTop: '16px' }}>
+                    <h4>Danh sách chi tiết lỗi dữ liệu:</h4>
+                    <div style={{ maxHeight: '300px', overflowY: 'auto', border: '1px solid var(--line)', borderRadius: '8px', padding: '12px', background: 'white' }}>
+                      <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left', fontSize: '14px' }}>
+                        <thead>
+                          <tr style={{ borderBottom: '2px solid var(--line)' }}>
+                            <th style={{ padding: '8px' }}>Dòng Excel</th>
+                            <th style={{ padding: '8px' }}>Mã ngoài</th>
+                            <th style={{ padding: '8px' }}>Tên trường</th>
+                            <th style={{ padding: '8px' }}>Chi tiết lỗi</th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {result.errors.map((err, idx) => (
+                            <tr key={idx} style={{ borderBottom: '1px solid var(--line)' }}>
+                              <td style={{ padding: '8px', fontWeight: 600 }}>{err.record_index}</td>
+                              <td style={{ padding: '8px' }}>{err.external_code || '—'}</td>
+                              <td style={{ padding: '8px', color: 'var(--danger)' }}>{err.field_name}</td>
+                              <td style={{ padding: '8px' }}>{err.error_message}</td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                    </div>
+                  </div>
+                )}
+              </div>
+            </Card>
+          )}
+        </div>
+      </Card>
+    </div>
+  )
+}
+
 function EnterpriseSelfRegistrationPanel() {
-  const { user, reloadProfile } = useAuth()
+  const { reloadProfile } = useAuth()
   const [form, setForm] = useState<OrganizationSelfRegistrationPayload>(() => ({
     ...initialSelfRegistrationForm,
     general: {
       ...initialSelfRegistrationForm.general,
       contacts: {
         ...initialSelfRegistrationForm.general.contacts,
-        email: user?.email || '',
+        email: 'admin@imap.local',
       },
     },
   }))

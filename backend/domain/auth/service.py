@@ -87,7 +87,7 @@ class AuthService:
         if role is None:
             raise RuntimeError("enterprise role taxonomy missing")
 
-        normalized_tax_code = self._normalize_tax_code(payload.tax_code) if payload.tax_code is not None else None
+        normalized_tax_code = self._normalize_tax_code(payload.tax_code)
         linked_org = (
             self._repository.find_organization_by_tax_code(normalized_tax_code)
             if normalized_tax_code is not None
@@ -509,11 +509,11 @@ class AuthService:
             raise UnauthorizedError(invalid_message)
         return normalized
 
-    def _normalize_tax_code(self, raw: str) -> str:
+    def _normalize_tax_code(self, raw: str | None) -> str | None:
+        if raw is None:
+            return None
         try:
             normalized = normalize_tax_code(raw)
         except RecordValidationError as exc:
             raise UnauthorizedError("invalid tax code", detail={"field": exc.field_name}) from exc
-        if normalized is None:
-            raise UnauthorizedError("invalid tax code")
         return normalized

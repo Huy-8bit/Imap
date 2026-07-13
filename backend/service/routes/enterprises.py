@@ -1,6 +1,7 @@
 from __future__ import annotations
 
-from fastapi import APIRouter, Depends, Path
+import io
+from fastapi import APIRouter, Depends, Path, UploadFile, File, Form
 
 from backend.domain.auth.schemas import AuthenticatedUser
 from backend.domain.organizations import (
@@ -29,8 +30,8 @@ from backend.domain.organizations.schemas import (
     enterprise_featured_params,
     enterprise_list_params,
 )
-from backend.libs.database import PostgreSQLClient
-from backend.service.dependencies import get_postgresql_client, require_roles
+from backend.libs.database import PostgreSQLClient, RedisCommands
+from backend.service.dependencies import get_postgresql_client, require_roles, get_redis_client
 
 router = APIRouter(tags=["orgs"])
 
@@ -68,6 +69,43 @@ async def import_orgs(
         OrganizationCatalogRepository(db),
     )
     return service.import_enterprises(payload, current_user=user)
+
+
+@router.post("/import-excel", response_model=OrganizationImportEnvelope)
+async def import_orgs_excel(
+    file: UploadFile = File(...),
+    dry_run: bool = Form(False),
+    user: AuthenticatedUser = Depends(require_roles("admin")),
+    db: PostgreSQLClient = Depends(get_postgresql_client),
+    redis: RedisCommands = Depends(get_redis_client),
+) -> OrganizationImportEnvelope:
+    content = await file.read()
+    file_obj = io.BytesIO(content)
+
+    service = OrganizationAdminService(
+        OrganizationImportRepository(db),
+        OrganizationCatalogRepository(db),
+    )
+
+    envelope = service.import_enterprises_excel(
+        file_obj,
+        source_name=file.filename,
+        dry_run=dry_run,
+        current_user=user,
+    )
+
+    if not dry_run:
+        try:
+            r = redis.require()
+            keys = []
+            for pattern in ["insights:*", "stats:*", "dashboard:*"]:
+                keys.extend(r.keys(pattern))
+            if keys:
+                r.delete(*keys)
+        except Exception:
+            pass
+
+    return envelope
 
 
 @router.post("/self-registration", response_model=OrganizationUpsertEnvelope)

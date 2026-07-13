@@ -288,13 +288,13 @@ export function RequireGuest({ children }: PropsWithChildren) {
 }
 
 export function RequireEnterprise({ children }: PropsWithChildren) {
-  const { status, isEnterprise } = useAuth()
+  const { status, isEnterprise, isAdmin } = useAuth()
   const location = useLocation()
 
   if (status === 'loading') {
     return <div className="page-message">Đang kiểm tra phiên đăng nhập...</div>
   }
-  if (!isEnterprise) {
+  if (!isEnterprise && !isAdmin) {
     return <Navigate to="/login" replace state={{ from: location.pathname }} />
   }
   return <>{children}</>

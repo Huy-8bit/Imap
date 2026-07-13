@@ -57,8 +57,12 @@ class ApiClient {
 
     let body: BodyInit | undefined
     if (rawBody !== undefined) {
-      headers.set('Content-Type', 'application/json')
-      body = JSON.stringify(rawBody)
+      if (rawBody instanceof FormData) {
+        body = rawBody
+      } else {
+        headers.set('Content-Type', 'application/json')
+        body = JSON.stringify(rawBody)
+      }
     }
 
     const response = await fetch(this.buildUrl(path, options.query), {
